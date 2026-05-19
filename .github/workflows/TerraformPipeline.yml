@@ -142,28 +142,25 @@ jobs:
         if: steps.plan.outputs.changes == 'true'
         run: terraform apply -input=false -auto-approve tfplan
 
- 
+      - name: No Infrastructure Changes
+        if: steps.plan.outputs.changes == 'false'
+        run: echo "No infrastructure changes detected."
+
+      # =========================
       # ANSIBLE CONFIGURATION
-     
+      # =========================
 
       - name: Install Ansible
-        if: steps.plan.outputs.changes == 'true'
         run: |
           sudo apt update
           sudo apt install -y ansible
 
       - name: Run Ansible Deploy Playbook
-        if: steps.plan.outputs.changes == 'true'
         working-directory: ansible
         run: |
           ansible-playbook -i inventory deploy.yml
 
       - name: Run Ansible Test Playbook
-        if: steps.plan.outputs.changes == 'true'
         working-directory: ansible
         run: |
           ansible-playbook -i inventory test.yml
-
-      - name: No Infrastructure Changes
-        if: steps.plan.outputs.changes == 'false'
-        run: echo "No changes detected. Nothing to deploy."
