@@ -1,18 +1,18 @@
 variable "aws_region" {
-  type    = string
-  
+  type = string
+
 }
 
 variable "vpc_cidr" {
   description = "The CIDR block for the VPC"
   type        = string
- 
+
 }
 
 variable "availability_zones" {
   description = "List of availability zones to create subnets in"
   type        = list(string)
-  
+
 }
 
 
@@ -40,7 +40,7 @@ variable "hosted_zone_id" {
 variable "subdomain" {
   description = "Subdomain for the application"
   type        = string
-  
+
 }
 
 

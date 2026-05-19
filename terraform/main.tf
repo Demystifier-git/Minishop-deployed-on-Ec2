@@ -8,7 +8,7 @@ module "vpc" {
 module "subnets" {
   source = "./modules/subnets"
 
-  vpc_id            = module.vpc.vpc_id
+  vpc_id             = module.vpc.vpc_id
   availability_zones = var.availability_zones
 }
 
@@ -46,7 +46,7 @@ module "routes" {
 module "web_sg" {
   source = "./modules/security-group-ec2"
 
-  vpc_id = module.vpc.vpc_id
+  vpc_id  = module.vpc.vpc_id
   sg_name = "ec2-sg"
 
 }
@@ -54,7 +54,7 @@ module "web_sg" {
 module "vpc_sg" {
   source = "./modules/security-group-VPC"
 
-  vpc_id = module.vpc.vpc_id
+  vpc_id  = module.vpc.vpc_id
   sg_name = "vpc-sg"
 }
 
@@ -62,17 +62,17 @@ module "vpc_sg" {
 module "ec2" {
   source = "./modules/ec2"
 
-  name          = "web-server"
-  
+  name = "web-server"
+
 
   # EC2 expects ONE subnet
   subnet_id = module.subnets.private_subnet_ids[0]
 
   security_group_ids = [module.web_sg.sg_id]
 
-  ami       = var.ec2_ami
+  ami           = var.ec2_ami
   instance_type = var.instance_type
-  key_name = null
+  key_name      = null
 }
 
 # Load Balancer + SSL
@@ -106,17 +106,17 @@ module "route53" {
 module "ec2_asg" {
   source = "./modules/ec2-asg"
 
-  private_subnets     = module.subnets.private_subnet_ids
-  security_group_ids  = [module.web_sg.sg_id]
-  target_group_arn    = module.lb_ssl.target_group_arn
+  private_subnets    = module.subnets.private_subnet_ids
+  security_group_ids = [module.web_sg.sg_id]
+  target_group_arn   = module.lb_ssl.target_group_arn
 
-  key_name            = null
-  ec2_ami             = var.ec2_ami
-  instance_type       = var.instance_type
+  key_name      = null
+  ec2_ami       = var.ec2_ami
+  instance_type = var.instance_type
 
-  desired_capacity    = var.desired_capacity
-  max_size            = var.max_size
-  min_size            = var.min_size
+  desired_capacity = var.desired_capacity
+  max_size         = var.max_size
+  min_size         = var.min_size
 }
 
 
