@@ -35,8 +35,6 @@ resource "aws_instance" "this" {
   vpc_security_group_ids = var.security_group_ids
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
 
-  # Run bootstrap script on first boot
-  user_data = file("${path.module}/bootstrap.sh")
 
   tags = {
     Name = var.name
