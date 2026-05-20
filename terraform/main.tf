@@ -183,9 +183,9 @@ module "app_secret" {
   }
 }
 
-module "tf_state_backend" {
-  source = "./modules/tf_state_backend"
+#module "tf_state_backend" {
+  #source = "./modules/tf_state_backend"
 
-  project_name = var.project_name
-  environment  = var.environment
-}
+  #project_name = var.project_name
+  #environment  = var.environment
+#}
