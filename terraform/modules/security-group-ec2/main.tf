@@ -6,35 +6,35 @@ resource "aws_security_group" "web" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [var.lb_security_group_id]
+    security_groups = [var.lb_security_group_id]
   }
 
   ingress {
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
-    cidr_blocks = [var.lb_security_group_id]
+    security_groups = [var.lb_security_group_id]
   }
 
   ingress {
     from_port   = 8000
     to_port     = 8000
     protocol    = "tcp"
-    cidr_blocks = [var.lb_security_group_id]
+    security_groups = [var.lb_security_group_id]
   }
 
   ingress {
     from_port   = 9090
     to_port     = 9090
     protocol    = "tcp"
-    cidr_blocks = [var.lb_security_group_id]
+    security_groups = [var.lb_security_group_id]
   }
 
   ingress {
     from_port   = 27017
     to_port     = 27017
     protocol    = "tcp"
-    cidr_blocks = [var.lb_security_group_id]
+    security_groups = [var.lb_security_group_id]
   }
 
   egress {

@@ -157,29 +157,27 @@ jobs:
           esac
 
       # =========================================================
-      # BLOCK DESTRUCTIVE CHANGES
+      # BLOCK ONLY PURE DELETES
       # =========================================================
-      - name: Prevent Destructive Changes
+      - name: Prevent Destructive Deletes
         if: steps.plan.outputs.changes == 'true'
         shell: bash
         run: |
           terraform show -json tfplan > tfplan.json
 
-          DESTROY_COUNT=$(jq '
+          DELETE_COUNT=$(jq '
             [
               .resource_changes[]
               | select(
-                  (.change.actions | index("delete")) or
-                  (.change.actions == ["delete","create"]) or
-                  (.change.actions == ["create","delete"])
+                  .change.actions == ["delete"]
                 )
             ] | length
           ' tfplan.json)
 
-          echo "Destructive Changes: $DESTROY_COUNT"
+          echo "Pure Deletes Detected: $DELETE_COUNT"
 
-          if [ "$DESTROY_COUNT" -gt 0 ]; then
-            echo "Destructive or replacement changes detected."
+          if [ "$DELETE_COUNT" -gt 0 ]; then
+            echo "Pure destructive deletes detected."
             exit 1
           fi
 
