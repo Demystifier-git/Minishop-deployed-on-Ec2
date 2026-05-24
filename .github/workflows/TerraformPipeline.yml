@@ -136,18 +136,25 @@ jobs:
 
           echo "Terraform Exit Code: $exit_code"
 
-          if [ "$exit_code" -eq 1 ]; then
-            echo "Terraform plan failed"
-            exit 1
-          fi
-
-          if [ "$exit_code" -eq 0 ]; then
-            echo "changes=false" >> $GITHUB_OUTPUT
-            echo "No infrastructure changes detected"
-          elif [ "$exit_code" -eq 2 ]; then
-            echo "changes=true" >> $GITHUB_OUTPUT
-            echo "Infrastructure changes detected"
-          fi
+          case $exit_code in
+            0)
+              echo "changes=false" >> $GITHUB_OUTPUT
+              echo "No infrastructure changes detected"
+              ;;
+            1)
+              echo "Terraform plan failed"
+              exit 1
+              ;;
+            2)
+              echo "changes=true" >> $GITHUB_OUTPUT
+              echo "Infrastructure changes detected"
+              exit 0
+              ;;
+            *)
+              echo "Unknown Terraform exit code: $exit_code"
+              exit 1
+              ;;
+          esac
 
       # =========================================================
       # BLOCK DESTRUCTIVE CHANGES
@@ -163,7 +170,8 @@ jobs:
               .resource_changes[]
               | select(
                   (.change.actions | index("delete")) or
-                  (.change.actions | index("replace"))
+                  (.change.actions == ["delete","create"]) or
+                  (.change.actions == ["create","delete"])
                 )
             ] | length
           ' tfplan.json)
@@ -191,12 +199,7 @@ jobs:
   apply:
     name: Terraform Apply
     needs: plan
-
     runs-on: ubuntu-latest
-
-    # =========================================================
-    # GITHUB ENVIRONMENT APPROVAL GATE
-    # =========================================================
     environment: production
 
     if: needs.plan.outputs.tf_changes == 'true'
