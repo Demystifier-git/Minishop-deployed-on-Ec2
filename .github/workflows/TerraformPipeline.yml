@@ -29,6 +29,7 @@ jobs:
 
     outputs:
       tf_changes: ${{ steps.plan.outputs.changes }}
+      has_destroy: ${{ steps.destroy_check.outputs.has_destroy }}
 
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -157,28 +158,32 @@ jobs:
           esac
 
       # =========================================================
-      # BLOCK ONLY PURE DELETES
+      # CHECK FOR DELETIONS
       # =========================================================
-      - name: Prevent Destructive Deletes
+      - name: Detect Destructive Changes
+        id: destroy_check
         if: steps.plan.outputs.changes == 'true'
         shell: bash
         run: |
           terraform show -json tfplan > tfplan.json
 
-          DELETE_COUNT=$(jq '
+          DESTROY_COUNT=$(jq '
             [
               .resource_changes[]
               | select(
-                  .change.actions == ["delete"]
+                  (.change.actions | index("delete"))
                 )
             ] | length
           ' tfplan.json)
 
-          echo "Pure Deletes Detected: $DELETE_COUNT"
+          echo "Destroy Count: $DESTROY_COUNT"
 
-          if [ "$DELETE_COUNT" -gt 0 ]; then
-            echo "Pure destructive deletes detected."
-            exit 1
+          if [ "$DESTROY_COUNT" -gt 0 ]; then
+            echo "has_destroy=true" >> $GITHUB_OUTPUT
+            echo "Destructive changes detected. Apply will be skipped."
+          else
+            echo "has_destroy=false" >> $GITHUB_OUTPUT
+            echo "No destructive changes detected."
           fi
 
       # =========================================================
@@ -200,7 +205,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
-    if: needs.plan.outputs.tf_changes == 'true'
+    if: |
+      needs.plan.outputs.tf_changes == 'true' &&
+      needs.plan.outputs.has_destroy == 'false'
 
     defaults:
       run:
