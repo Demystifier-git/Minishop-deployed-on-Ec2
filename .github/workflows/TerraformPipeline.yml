@@ -91,6 +91,10 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      - name: Terraform remove s3 bucket and dynamodb from statefile
+        run: terraform state rm aws_s3_bucket.terraform_state
+             terraform state rm aws_dynamodb_table.terraform_locks 
+
       # =========================
       # TERRAFORM PLAN (FIXED)
       # =========================
