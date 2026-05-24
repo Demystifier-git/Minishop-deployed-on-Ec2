@@ -203,6 +203,6 @@ module "cloudfront_waf" {
   environment           = var.environment
   domain_name           = var.domain_name
   certificate_arn       = var.certificate_arn
-  s3_bucket_domain_name = var.s3_bucket_domain_name
+  alb_dns_name = module.lb_ssl.lb_dns_name
   
 }

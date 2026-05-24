@@ -73,7 +73,7 @@ jobs:
       TF_VAR_smtp_from: ${{ secrets.SMTP_FROM }}
 
       TF_VAR_s3_bucket_domain_name: ${{ secrets.TF_VAR_s3_bucket_domain_name }}
-      TF_VAR_logs_bucket_name: ${{ secrets.TF_VAR_logs_bucket_name }}
+      
 
     steps:
       # =========================================================
