@@ -48,7 +48,7 @@ module "web_sg" {
 
   vpc_id  = module.vpc.vpc_id
   sg_name = "ec2-sg"
-  
+
   lb_security_group_id = module.lb_ssl.lb_security_group_id
 
 }
@@ -110,19 +110,19 @@ module "ec2_asg" {
 
   private_subnets    = module.subnets.private_subnet_ids
   security_group_ids = [module.web_sg.sg_id]
-  target_group_arn = module.lb_ssl.backend_target_group_arn
+  target_group_arn   = module.lb_ssl.backend_target_group_arn
 
 
   key_name      = null
   ec2_ami       = var.ec2_ami
   instance_type = var.instance_type
 
-  desired_capacity = var.desired_capacity
-  max_size         = var.max_size
-  min_size         = var.min_size
+  desired_capacity        = var.desired_capacity
+  max_size                = var.max_size
+  min_size                = var.min_size
   lb_arn_suffix           = module.lb_ssl.lb_arn_suffix
   target_group_arn_suffix = module.lb_ssl.backend_target_group_arn
-  
+
 }
 
 
@@ -202,7 +202,7 @@ module "cloudfront_waf" {
   project_name          = var.project_name
   environment           = var.environment
   domain_name           = var.domain_name
-  certificate_arn   = var.certificate_arn
+  certificate_arn       = var.certificate_arn
   s3_bucket_domain_name = var.s3_bucket_domain_name
   logs_bucket_name      = var.logs_bucket_name
 }

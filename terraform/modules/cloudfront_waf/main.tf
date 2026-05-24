@@ -54,7 +54,7 @@ resource "aws_cloudfront_response_headers_policy" "security" {
       access_control_max_age_sec = 31536000
       include_subdomains         = true
       preload                    = true
-      override = true
+      override                   = true
     }
 
     content_type_options {
@@ -103,7 +103,7 @@ resource "aws_cloudfront_distribution" "this" {
     prefix          = "cloudfront/"
   }
 
-    restrictions {
+  restrictions {
     geo_restriction {
       restriction_type = "none"
     }
