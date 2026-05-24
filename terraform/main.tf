@@ -199,10 +199,10 @@ module "app_secret" {
 module "cloudfront_waf" {
   source = "./modules/cloudfront_waf"
 
-  project_name          = var.project_name
-  environment           = var.environment
-  domain_name           = var.domain_name
-  certificate_arn       = var.certificate_arn
-  alb_dns_name = module.lb_ssl.lb_dns_name
-  
+  project_name    = var.project_name
+  environment     = var.environment
+  domain_name     = var.domain_name
+  certificate_arn = var.certificate_arn
+  alb_dns_name    = module.lb_ssl.lb_dns_name
+
 }

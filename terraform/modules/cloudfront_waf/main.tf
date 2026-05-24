@@ -4,7 +4,7 @@ resource "aws_cloudfront_distribution" "this" {
   aliases = [var.domain_name]
 
   origin {
-    domain_name = var.alb_dns_name   # ✅ FIXED (NO S3)
+    domain_name = var.alb_dns_name # ✅ FIXED (NO S3)
     origin_id   = "alb-origin"
 
     custom_origin_config {
