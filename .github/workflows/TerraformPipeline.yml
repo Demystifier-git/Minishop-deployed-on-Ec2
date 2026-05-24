@@ -138,7 +138,7 @@ jobs:
       # APPLY
       # =========================
       - name: Terraform Apply
-        if: steps.plan.outputs.changes == 'true'
+        if: success()
         run: terraform apply -input=false -auto-approve tfplan
 
       - name: No Infrastructure Changes
