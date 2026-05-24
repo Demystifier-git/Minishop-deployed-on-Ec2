@@ -27,10 +27,6 @@ jobs:
       run:
         working-directory: terraform
 
-    outputs:
-      tf_changes: ${{ steps.plan.outputs.changes }}
-      has_destroy: ${{ steps.destroy_check.outputs.has_destroy }}
-
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
@@ -123,74 +119,15 @@ jobs:
       # PLAN
       # =========================================================
       - name: Terraform Plan
-        id: plan
-        shell: bash
         run: |
-          set +e
-
           terraform plan \
             -input=false \
-            -detailed-exitcode \
             -out=tfplan
-
-          exit_code=$?
-
-          echo "Terraform Exit Code: $exit_code"
-
-          case $exit_code in
-            0)
-              echo "changes=false" >> $GITHUB_OUTPUT
-              echo "No infrastructure changes detected"
-              ;;
-            1)
-              echo "Terraform plan failed"
-              exit 1
-              ;;
-            2)
-              echo "changes=true" >> $GITHUB_OUTPUT
-              echo "Infrastructure changes detected"
-              exit 0
-              ;;
-            *)
-              echo "Unknown Terraform exit code: $exit_code"
-              exit 1
-              ;;
-          esac
-
-      # =========================================================
-      # CHECK FOR DELETIONS
-      # =========================================================
-      - name: Detect Destructive Changes
-        id: destroy_check
-        if: steps.plan.outputs.changes == 'true'
-        shell: bash
-        run: |
-          terraform show -json tfplan > tfplan.json
-
-          DESTROY_COUNT=$(jq '
-            [
-              .resource_changes[]
-              | select(
-                  (.change.actions | index("delete"))
-                )
-            ] | length
-          ' tfplan.json)
-
-          echo "Destroy Count: $DESTROY_COUNT"
-
-          if [ "$DESTROY_COUNT" -gt 0 ]; then
-            echo "has_destroy=true" >> $GITHUB_OUTPUT
-            echo "Destructive changes detected. Apply will be skipped."
-          else
-            echo "has_destroy=false" >> $GITHUB_OUTPUT
-            echo "No destructive changes detected."
-          fi
 
       # =========================================================
       # UPLOAD PLAN
       # =========================================================
       - name: Upload Terraform Plan
-        if: steps.plan.outputs.changes == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
@@ -204,10 +141,6 @@ jobs:
     needs: plan
     runs-on: ubuntu-latest
     environment: production
-
-    if: |
-      needs.plan.outputs.tf_changes == 'true' &&
-      needs.plan.outputs.has_destroy == 'false'
 
     defaults:
       run:
