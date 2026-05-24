@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   terraform:
-    name: Terraform Plan, Apply and Ansible Deployment
+    name: Terraform Plan & Apply (Production)
     runs-on: ubuntu-latest
     environment: production
 
@@ -91,20 +91,17 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-     
       # =========================
-      # TERRAFORM PLAN (FIXED)
+      # PLAN
       # =========================
       - name: Terraform Plan
         id: plan
         shell: bash
         run: |
-          set -o pipefail
-
           terraform plan -input=false -detailed-exitcode -out=tfplan
           exit_code=$?
 
-          echo "Terraform exit code: $exit_code"
+          echo "exit_code=$exit_code"
 
           if [ "$exit_code" -eq 1 ]; then
             echo "Terraform plan failed"
@@ -113,13 +110,8 @@ jobs:
 
           if [ "$exit_code" -eq 0 ]; then
             echo "changes=false" >> $GITHUB_OUTPUT
-            echo "No changes detected"
           elif [ "$exit_code" -eq 2 ]; then
             echo "changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected"
-          else
-            echo "Unknown exit code: $exit_code"
-            exit 1
           fi
 
       # =========================
@@ -133,11 +125,7 @@ jobs:
 
           DESTROY_COUNT=$(jq '
             [.resource_changes[]
-              | select(
-                  (.change.actions | index("delete")) or
-                  (.change.actions == ["create","delete"]) or
-                  (.change.actions == ["delete","create"])
-                )
+              | select(.change.actions[]? == "delete")
             ] | length
           ' tfplan.json)
 
@@ -145,16 +133,6 @@ jobs:
             echo "Destructive changes detected: $DESTROY_COUNT"
             exit 1
           fi
-
-      # =========================
-      # ARTIFACT UPLOAD
-      # =========================
-      - name: Upload Terraform Plan
-        if: steps.plan.outputs.changes == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-plan
-          path: terraform/tfplan
 
       # =========================
       # APPLY
@@ -166,22 +144,3 @@ jobs:
       - name: No Infrastructure Changes
         if: steps.plan.outputs.changes == 'false'
         run: echo "No infrastructure changes detected."
-
-      # =========================
-      # ANSIBLE
-      # =========================
-      - name: Install Ansible
-        if: steps.plan.outputs.changes == 'true'
-        run: |
-          sudo apt update
-          sudo apt install -y ansible
-
-      - name: Run Ansible Deploy Playbook
-        if: steps.plan.outputs.changes == 'true'
-        working-directory: ansible
-        run: ansible-playbook -i inventory deploy.yml
-
-      - name: Run Ansible Test Playbook
-        if: steps.plan.outputs.changes == 'true'
-        working-directory: ansible
-        run: ansible-playbook -i inventory test.yml
