@@ -204,5 +204,5 @@ module "cloudfront_waf" {
   domain_name           = var.domain_name
   certificate_arn       = var.certificate_arn
   s3_bucket_domain_name = var.s3_bucket_domain_name
-  logs_bucket_name      = var.logs_bucket_name
+  
 }

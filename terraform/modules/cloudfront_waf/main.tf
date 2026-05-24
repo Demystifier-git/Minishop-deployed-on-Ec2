@@ -1,7 +1,3 @@
-resource "aws_s3_bucket" "logs" {
-  bucket = var.logs_bucket_name
-}
-
 resource "aws_cloudfront_origin_access_control" "oac" {
   name                              = "${var.project_name}-oac"
   origin_access_control_origin_type = "s3"
@@ -96,12 +92,6 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   web_acl_id = aws_wafv2_web_acl.this.arn
-
-  logging_config {
-    bucket          = aws_s3_bucket.logs.bucket_domain_name
-    include_cookies = false
-    prefix          = "cloudfront/"
-  }
 
   restrictions {
     geo_restriction {
