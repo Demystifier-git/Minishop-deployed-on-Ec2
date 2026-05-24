@@ -174,3 +174,25 @@ variable "smtp_password" {
 variable "smtp_from" {
   type = string
 }
+
+variable "s3_bucket_domain_name" {
+  description = "S3 bucket domain name used as CloudFront origin (e.g. bucket.s3.amazonaws.com)"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9.-]+\\.s3(\\.amazonaws\\.com)?$", var.s3_bucket_domain_name))
+    error_message = "Must be a valid S3 bucket domain name."
+  }
+}
+
+variable "logs_bucket_name" {
+  description = "S3 bucket name used for CloudFront/WAF logs"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9.-]{3,63}$", var.logs_bucket_name))
+    error_message = "Logs bucket name must be a valid S3 bucket name (3-63 lowercase letters, numbers, dots, or hyphens)."
+  }
+}
+
+

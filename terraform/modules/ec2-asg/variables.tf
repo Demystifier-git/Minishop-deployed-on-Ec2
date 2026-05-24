@@ -33,3 +33,6 @@ variable "max_size" {
 variable "min_size" {
   type = number
 }
+
+variable "lb_arn_suffix" {}
+variable "target_group_arn_suffix" {}

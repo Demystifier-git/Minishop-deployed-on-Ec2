@@ -62,6 +62,28 @@ resource "aws_lb_target_group" "frontend" {
   }
 }
 
+# BACKEND TARGET GROUP
+
+resource "aws_lb_target_group" "backend" {
+  name        = "backend-tg"
+  port        = 8000
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "instance"
+
+  health_check {
+    enabled             = true
+    path                = "/health"
+    protocol            = "HTTP"
+    port                = "traffic-port"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    matcher             = "200"
+  }
+}
+
 
 # GRAFANA TARGET GROUP
 

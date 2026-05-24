@@ -1,4 +1,4 @@
-const API_BASE = "http://52.90.215.130:8000";
+const API_BASE = "https://app.delightdavid.online";
 
 async function loadProducts() {
   const res = await fetch(`${API_BASE}/products`);
