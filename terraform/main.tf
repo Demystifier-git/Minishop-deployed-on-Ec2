@@ -121,7 +121,7 @@ module "ec2_asg" {
   max_size                = var.max_size
   min_size                = var.min_size
   lb_arn_suffix           = module.lb_ssl.lb_arn_suffix
-  target_group_arn_suffix = module.lb_ssl.backend_target_group_arn
+  target_group_arn_suffix = module.lb_ssl.backend_target_group_arn_suffix
 
 }
 
