@@ -1,22 +1,26 @@
 ---
-- name: Production deployment with runtime secrets (no .env file)
-  hosts: local
+- name: Production deployment with AWS Secrets Manager + Docker
+  hosts: all
   become: true
 
   vars:
-    repo_url: https://github.com/YOUR_USERNAME/Damolak_Assesment.git
+    repo_url: https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git
     repo_branch: main
     app_dir: /opt/minishop
     aws_region: us-east-1
-    secret_name: minishop/prod
+    secret_name: prod/minishop/app
 
   tasks:
+
+   
+    # SYSTEM PREPARATION
+  
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
 
-    - name: Install required packages (Docker, Git, Python tools)
+    - name: Install required system packages
       ansible.builtin.apt:
         name:
           - git
@@ -25,7 +29,7 @@
           - python3-pip
         state: present
 
-    - name: Install AWS SDK for Ansible Secrets Manager lookup
+    - name: Install Python dependencies for AWS
       ansible.builtin.pip:
         name:
           - boto3
@@ -38,15 +42,14 @@
         state: started
         enabled: true
 
+  
+    # APP SETUP
+   
     - name: Ensure application directory exists
       ansible.builtin.file:
         path: "{{ app_dir }}"
         state: directory
         mode: "0755"
-
-    - name: Fetch secrets from AWS Secrets Manager
-      ansible.builtin.set_fact:
-        app_secrets: "{{ lookup('amazon.aws.aws_secret', secret_name, region=aws_region) }}"
 
     - name: Clone or update application repository
       ansible.builtin.git:
@@ -54,30 +57,64 @@
         dest: "{{ app_dir }}"
         version: "{{ repo_branch }}"
         force: true
-        update: true
 
-    - name: Deploy application with runtime environment variables (NO .env file)
+    # -----------------------------
+    # SECRETS MANAGEMENT (CLEAN + SAFE)
+   
+    - name: Fetch secrets from AWS Secrets Manager
+      ansible.builtin.set_fact:
+        app_secrets: "{{ lookup('amazon.aws.aws_secret', secret_name, region=aws_region) }}"
+
+    - name: Validate secrets exist
+      ansible.builtin.assert:
+        that:
+          - app_secrets.DB_USER is defined
+          - app_secrets.DB_PASSWORD is defined
+          - app_secrets.DB_HOST is defined
+          - app_secrets.DB_NAME is defined
+        fail_msg: "Missing required database secrets from AWS Secrets Manager"
+
+    # -----------------------------
+    # STOP OLD CONTAINERS (SAFE DEPLOYMENT)
+  
+    - name: Stop existing containers (if running)
+      ansible.builtin.shell: docker compose down
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: true
+
+  
+    # DEPLOY APPLICATION (SAFE ENV INJECTION)
+    
+    - name: Deploy application with Docker Compose
       ansible.builtin.shell: |
-        export DB_USER={{ app_secrets.DB_USER }}
-        export DB_PASSWORD={{ app_secrets.DB_PASSWORD }}
-        export DB_HOST={{ app_secrets.DB_HOST }}
-        export DB_NAME={{ app_secrets.DB_NAME }}
-
+        DB_USER={{ app_secrets.DB_USER }} \
+        DB_PASSWORD={{ app_secrets.DB_PASSWORD }} \
+        DB_HOST={{ app_secrets.DB_HOST }} \
+        DB_NAME={{ app_secrets.DB_NAME }} \
         docker compose up -d --build
       args:
         chdir: "{{ app_dir }}"
-      register: compose_output
+      register: deploy_output
 
     - name: Show deployment output
       ansible.builtin.debug:
-        var: compose_output.stdout_lines
+        var: deploy_output.stdout_lines
 
-    - name: Verify running containers
-      ansible.builtin.command:
-        cmd: docker ps
+    
+    # HEALTH CHECK
+   
+    - name: Wait for containers to stabilize
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Check running containers
+      ansible.builtin.command: docker ps
       register: containers
       changed_when: false
 
-    - name: Show running containers
+    - name: Display running containers
       ansible.builtin.debug:
         var: containers.stdout_lines
+
+    

@@ -123,6 +123,10 @@ module "ec2_asg" {
   lb_arn_suffix           = module.lb_ssl.lb_arn_suffix
   target_group_arn_suffix = module.lb_ssl.backend_target_group_arn_suffix
 
+  depends_on = [
+    module.lb_ssl
+  ]
+
 }
 
 
@@ -181,6 +185,9 @@ module "app_secret" {
     SMTP_FROM     = var.smtp_from
 
     APP_ENV = var.environment
+    DB_USER     = var.db_username
+    DB_PASSWORD = var.db_password
+    DB_NAME     = var.db_name
   })
 
   tags = {

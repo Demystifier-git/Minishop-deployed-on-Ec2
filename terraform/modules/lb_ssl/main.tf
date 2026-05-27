@@ -287,6 +287,5 @@ resource "aws_lb_target_group_attachment" "prometheus" {
 }
 
 
-# OUTPUTS (OPTIONAL)
 
 
