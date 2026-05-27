@@ -10,4 +10,4 @@ hostnames:
   - instance-id
 
 compose:
-  ansible_connection: aws_ssm
+  ansible_connection: '"aws_ssm"'
