@@ -10,4 +10,7 @@ hostnames:
   - instance-id
 
 compose:
-  ansible_connection: '"aws_ssm"'
+  ansible_connection: '"amazon.aws.aws_ssm"'
+  ansible_user: '"ubuntu"'
+  ansible_aws_ssm_region: '"us-east-1"'
+  ansible_python_interpreter: '"/usr/bin/python3"'
