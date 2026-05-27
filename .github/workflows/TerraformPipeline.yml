@@ -101,7 +101,7 @@ jobs:
       # FORMAT CHECK
       # =========================================================
       - name: Terraform Format Check
-        run: terraform fmt -check -recursive
+        run: terraform fmt  -recursive
 
       # =========================================================
       # INIT

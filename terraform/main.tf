@@ -184,7 +184,7 @@ module "app_secret" {
     SMTP_PASSWORD = var.smtp_password
     SMTP_FROM     = var.smtp_from
 
-    APP_ENV = var.environment
+    APP_ENV     = var.environment
     DB_USER     = var.db_username
     DB_PASSWORD = var.db_password
     DB_NAME     = var.db_name
