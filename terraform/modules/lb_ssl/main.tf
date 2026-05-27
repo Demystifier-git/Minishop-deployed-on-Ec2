@@ -26,6 +26,8 @@ resource "aws_security_group" "lb_sg" {
   }
 }
 
+# APPLICATION LOAD BALANCER
+
 resource "aws_lb" "app" {
   name               = "app-lb"
   internal           = false
@@ -38,9 +40,11 @@ resource "aws_lb" "app" {
   subnets = var.public_subnet_ids
 }
 
+# =========================
+# TARGET GROUPS
+# =========================
 
-# FRONTEND TARGET GROUP
-
+# FRONTEND
 
 resource "aws_lb_target_group" "frontend" {
   name        = "frontend-tg"
@@ -62,7 +66,7 @@ resource "aws_lb_target_group" "frontend" {
   }
 }
 
-# BACKEND TARGET GROUP
+# BACKEND
 
 resource "aws_lb_target_group" "backend" {
   name        = "backend-tg"
@@ -84,9 +88,7 @@ resource "aws_lb_target_group" "backend" {
   }
 }
 
-
-# GRAFANA TARGET GROUP
-
+# GRAFANA
 
 resource "aws_lb_target_group" "grafana" {
   name        = "grafana-tg"
@@ -108,9 +110,7 @@ resource "aws_lb_target_group" "grafana" {
   }
 }
 
-
-# PROMETHEUS TARGET GROUP
-
+# PROMETHEUS
 
 resource "aws_lb_target_group" "prometheus" {
   name        = "prometheus-tg"
@@ -132,9 +132,11 @@ resource "aws_lb_target_group" "prometheus" {
   }
 }
 
+# =========================
+# LISTENERS
+# =========================
 
 # HTTP -> HTTPS REDIRECT
-
 
 resource "aws_lb_listener" "http_redirect" {
   load_balancer_arn = aws_lb.app.arn
@@ -152,9 +154,7 @@ resource "aws_lb_listener" "http_redirect" {
   }
 }
 
-
 # HTTPS LISTENER
-
 
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.app.arn
@@ -174,7 +174,28 @@ resource "aws_lb_listener" "https" {
 # HOST-BASED ROUTING
 
 
+# api.delightdavid.online
+
+resource "aws_lb_listener_rule" "backend" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 5
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    host_header {
+      values = [
+        "api.${var.domain_name}"
+      ]
+    }
+  }
+}
+
 # grafana.delightdavid.online
+
 resource "aws_lb_listener_rule" "grafana" {
   listener_arn = aws_lb_listener.https.arn
   priority     = 10
@@ -194,6 +215,7 @@ resource "aws_lb_listener_rule" "grafana" {
 }
 
 # prometheus.delightdavid.online
+
 resource "aws_lb_listener_rule" "prometheus" {
   listener_arn = aws_lb_listener.https.arn
   priority     = 20
@@ -212,9 +234,11 @@ resource "aws_lb_listener_rule" "prometheus" {
   }
 }
 
+# =========================
+# TARGET GROUP ATTACHMENTS
+# =========================
 
-# ATTACH EC2 TO TARGET GROUPS
-
+# FRONTEND
 
 resource "aws_lb_target_group_attachment" "frontend" {
   target_group_arn = aws_lb_target_group.frontend.arn
@@ -226,6 +250,20 @@ resource "aws_lb_target_group_attachment" "frontend" {
   ]
 }
 
+# BACKEND
+
+resource "aws_lb_target_group_attachment" "backend" {
+  target_group_arn = aws_lb_target_group.backend.arn
+  target_id        = var.target_instance_id
+  port             = 8000
+
+  depends_on = [
+    aws_lb_listener.https
+  ]
+}
+
+# GRAFANA
+
 resource "aws_lb_target_group_attachment" "grafana" {
   target_group_arn = aws_lb_target_group.grafana.arn
   target_id        = var.target_instance_id
@@ -236,6 +274,8 @@ resource "aws_lb_target_group_attachment" "grafana" {
   ]
 }
 
+# PROMETHEUS
+
 resource "aws_lb_target_group_attachment" "prometheus" {
   target_group_arn = aws_lb_target_group.prometheus.arn
   target_id        = var.target_instance_id
@@ -245,3 +285,8 @@ resource "aws_lb_target_group_attachment" "prometheus" {
     aws_lb_listener.https
   ]
 }
+
+
+# OUTPUTS (OPTIONAL)
+
+
