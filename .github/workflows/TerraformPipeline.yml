@@ -2,12 +2,14 @@ name: Terraform Deploy (Production)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "main"
-    paths:
-      - "terraform/**"
-      - ".github/workflows/TerraformPipeline.yml"
+    inputs:
+      action:
+        description: "Select Terraform action"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
 
 permissions:
   id-token: write
@@ -15,11 +17,11 @@ permissions:
 
 jobs:
 
-  # =========================================================
   # TERRAFORM PLAN
-  # =========================================================
+
   plan:
     name: Terraform Plan
+    if: ${{ github.event.inputs.action == 'plan' }}
     runs-on: ubuntu-latest
     environment: production
 
@@ -73,71 +75,45 @@ jobs:
       TF_VAR_smtp_from: ${{ secrets.SMTP_FROM }}
 
       TF_VAR_s3_bucket_domain_name: ${{ secrets.TF_VAR_s3_bucket_domain_name }}
-      
 
     steps:
-      # =========================================================
-      # CHECKOUT
-      # =========================================================
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # =========================================================
-      # AWS AUTH
-      # =========================================================
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # =========================================================
-      # TERRAFORM SETUP
-      # =========================================================
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # =========================================================
-      # FORMAT CHECK
-      # =========================================================
       - name: Terraform Format Check
-        run: terraform fmt  -recursive
+        run: terraform fmt -recursive
 
-      # =========================================================
-      # INIT
-      # =========================================================
       - name: Terraform Init
         run: terraform init -reconfigure
 
-      # =========================================================
-      # VALIDATE
-      # =========================================================
       - name: Terraform Validate
         run: terraform validate
 
-      # =========================================================
-      # PLAN
-      # =========================================================
       - name: Terraform Plan
-        run: |
-          terraform plan \
-            -input=false \
-            -out=tfplan
+        run: terraform plan -input=false -out=tfplan
 
-      # =========================================================
-      # UPLOAD PLAN
-      # =========================================================
-      - name: Upload Terraform Plan
+      - name: Upload Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
           path: terraform/tfplan
 
-  # =========================================================
+
+
   # TERRAFORM APPLY
-  # =========================================================
+
   apply:
     name: Terraform Apply
+    if: ${{ github.event.inputs.action == 'apply' }}
     needs: plan
     runs-on: ubuntu-latest
     environment: production
@@ -195,44 +171,26 @@ jobs:
       TF_VAR_logs_bucket_name: ${{ secrets.TF_VAR_logs_bucket_name }}
 
     steps:
-      # =========================================================
-      # CHECKOUT
-      # =========================================================
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # =========================================================
-      # AWS AUTH
-      # =========================================================
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # =========================================================
-      # TERRAFORM SETUP
-      # =========================================================
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # =========================================================
-      # INIT
-      # =========================================================
       - name: Terraform Init
         run: terraform init -reconfigure
 
-      # =========================================================
-      # DOWNLOAD PLAN
-      # =========================================================
-      - name: Download Terraform Plan
+      - name: Download Plan
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
           path: terraform
 
-      # =========================================================
-      # APPLY
-      # =========================================================
       - name: Terraform Apply
         run: terraform apply -input=false -auto-approve tfplan
