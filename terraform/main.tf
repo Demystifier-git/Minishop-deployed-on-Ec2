@@ -196,13 +196,10 @@ module "app_secret" {
 #   environment  = var.environment
 # }
 
-module "cloudfront_waf" {
-  source = "./modules/cloudfront_waf"
+module "waf" {
+  source = "./modules/waf"
 
-  project_name    = var.project_name
-  environment     = var.environment
-  domain_name     = var.domain_name
-  certificate_arn = var.certificate_arn
-  alb_dns_name    = module.lb_ssl.lb_dns_name
-
+  project_name = var.project_name
+  environment  = var.environment
+  alb_arn      = module.lb_ssl.lb_arn
 }

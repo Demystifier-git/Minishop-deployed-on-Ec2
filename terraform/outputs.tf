@@ -97,9 +97,7 @@ output "secret_name" {
   value = module.app_secret.secret_name
 }
 
-output "cloudfront_domain" {
-  value = module.cloudfront_waf.cloudfront_domain_name
-}
+
 
 
 
