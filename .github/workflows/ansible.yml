@@ -9,7 +9,6 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  ANSIBLE_COLLECTIONS_PATHS: /home/runner/.ansible/collections:/usr/share/ansible/collections
 
 jobs:
   deploy:
@@ -20,13 +19,13 @@ jobs:
     steps:
 
       # =========================================================
-      # CHECKOUT REPOSITORY
+      # Checkout repo
       # =========================================================
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       # =========================================================
-      # CONFIGURE AWS CREDENTIALS
+      # AWS authentication
       # =========================================================
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -35,21 +34,22 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # =========================================================
-      # INSTALL ANSIBLE + AWS COLLECTION
+      # Install Ansible (FIXED versions)
       # =========================================================
       - name: Install Ansible
         run: |
           python -m pip install --upgrade pip
 
           pip install \
-            "ansible==9.13.0" \
+            "ansible==9.3.0" \
+            "ansible-core==2.16.3" \
             "boto3>=1.34.0" \
             "botocore>=1.34.0"
 
-          ansible-galaxy collection install amazon.aws --force
+          ansible-galaxy collection install amazon.aws:8.0.0 --force
 
       # =========================================================
-      # INSTALL SESSION MANAGER PLUGIN
+      # Install SSM plugin
       # =========================================================
       - name: Install AWS Session Manager Plugin
         run: |
@@ -61,14 +61,14 @@ jobs:
           session-manager-plugin --version
 
       # =========================================================
-      # VERIFY INVENTORY (YOUR FILE)
+      # Verify inventory
       # =========================================================
       - name: Verify Inventory
         run: |
           ansible-inventory -i ansible/inventory.ini --graph
 
       # =========================================================
-      # RUN PLAYBOOK
+      # Run playbook
       # =========================================================
       - name: Run Ansible Playbook
         run: |
