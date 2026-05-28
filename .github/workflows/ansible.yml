@@ -65,5 +65,5 @@ jobs:
       - name: Execute Ansible Playbook
         run: |
           ansible-playbook \
-            -i ansible/inventory.ini \
+            -i ansible/inventory.aws_ec2.yml \
             ansible/playbook.yml
