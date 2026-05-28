@@ -32,15 +32,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install Ansible + AWS collection
+      - name: Install Ansible + AWS collections
         run: |
+          python -m pip install --upgrade pip
           pip install ansible boto3 botocore
           ansible-galaxy collection install amazon.aws community.aws
 
-      - name: Verify AWS inventory
+      - name: Verify inventory
         run: ansible-inventory -i ansible/inventory.aws_ec2.yml --graph
 
-      - name: Run playbook (SSM)
+      - name: Run playbook (SSM ONLY)
         run: |
           ansible-playbook \
             -i ansible/inventory.aws_ec2.yml \

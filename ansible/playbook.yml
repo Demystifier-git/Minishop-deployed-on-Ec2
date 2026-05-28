@@ -1,4 +1,4 @@
-- name: Production Deployment (SSM Safe + Docker + Secrets Manager)
+- name: Production Deployment (SSM + Docker)
   hosts: all
   become: true
   gather_facts: false
@@ -7,58 +7,35 @@
     repo_url: https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git
     repo_branch: main
     app_dir: /opt/minishop
-    aws_region: us-east-1
-    secret_name: prod/minishop/app
 
   tasks:
 
-    - name: Ensure system packages are installed
+    - name: Install system packages
       ansible.builtin.shell: |
         sudo apt update -y
         sudo apt install -y git docker.io docker-compose-plugin python3-pip
-      changed_when: false
 
-    - name: Ensure Docker is running
+    - name: Start Docker
       ansible.builtin.shell: |
         sudo systemctl enable docker
         sudo systemctl start docker
-      changed_when: false
 
     - name: Create app directory
       ansible.builtin.file:
         path: "{{ app_dir }}"
         state: directory
-        mode: "0755"
 
     - name: Clone repo
-      ansible.builtin.git:
-        repo: "{{ repo_url }}"
-        dest: "{{ app_dir }}"
-        version: "{{ repo_branch }}"
-        force: true
-
-    - name: Fetch secrets from AWS Secrets Manager
-      ansible.builtin.set_fact:
-        app_secrets: "{{ lookup('amazon.aws.aws_secret', secret_name, region=aws_region) | default({}) }}"
-
-    - name: Stop containers
-      ansible.builtin.shell: docker compose down
-      args:
-        chdir: "{{ app_dir }}"
-      ignore_errors: true
+      ansible.builtin.shell: |
+        rm -rf {{ app_dir }}
+        git clone {{ repo_url }} {{ app_dir }}
 
     - name: Deploy app
       ansible.builtin.shell: |
-        export DB_USER={{ app_secrets.DB_USER }}
-        export DB_PASSWORD={{ app_secrets.DB_PASSWORD }}
-        export DB_HOST={{ app_secrets.DB_HOST }}
-        export DB_NAME={{ app_secrets.DB_NAME }}
-
+        cd {{ app_dir }}
         docker compose up -d --build
-      args:
-        chdir: "{{ app_dir }}"
 
-    - name: Show running containers
+    - name: Show containers
       ansible.builtin.shell: docker ps
       register: containers
       changed_when: false
