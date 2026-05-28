@@ -1,60 +1,92 @@
----
 - name: Production Deployment (SSM + Docker)
   hosts: web
   become: true
   gather_facts: false
 
   vars:
-    repo_url: https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git
-    repo_branch: main
-    app_dir: /opt/minishop
+    repo_url: "https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git"
+    repo_branch: "main"
+    app_dir: "/opt/minishop"
 
   tasks:
 
+    # =========================================================
+    # INSTALL SYSTEM PACKAGES USING RAW
+    # =========================================================
+
     - name: Install system packages
       raw: |
-        apt-get update &&
-        apt-get install -y docker.io docker-compose-plugin git python3 python3-pip
-      changed_when: true
+        sudo apt-get update -y
+        sudo apt-get install -y \
+          python3 \
+          python3-pip \
+          git \
+          docker.io \
+          docker-compose-plugin
+
+    # =========================================================
+    # GATHER FACTS AFTER PYTHON EXISTS
+    # =========================================================
 
     - name: Gather facts
       setup:
 
-    - name: Ensure docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: true
+    # =========================================================
+    # START DOCKER
+    # =========================================================
 
-    - name: Ensure application directory exists
-      file:
-        path: "{{ app_dir }}"
-        state: directory
-        mode: '0755'
+    - name: Start Docker
+      raw: |
+        sudo systemctl enable docker
+        sudo systemctl start docker
+
+    # =========================================================
+    # CREATE APP DIRECTORY
+    # =========================================================
+
+    - name: Create application directory
+      raw: sudo mkdir -p {{ app_dir }}
+
+    # =========================================================
+    # CLONE REPOSITORY
+    # =========================================================
 
     - name: Clone repository
-      git:
-        repo: "{{ repo_url }}"
-        dest: "{{ app_dir }}"
-        version: "{{ repo_branch }}"
-        force: true
+      raw: |
+        if [ ! -d "{{ app_dir }}/.git" ]; then
+          sudo git clone -b {{ repo_branch }} {{ repo_url }} {{ app_dir }}
+        else
+          cd {{ app_dir }}
+          sudo git pull origin {{ repo_branch }}
+        fi
 
-    - name: Stop old containers
-      shell: docker compose down
-      args:
-        chdir: "{{ app_dir }}"
-      ignore_errors: true
+    # =========================================================
+    # STOP OLD CONTAINERS
+    # =========================================================
 
-    - name: Start application
-      shell: docker compose up -d --build
-      args:
-        chdir: "{{ app_dir }}"
+    - name: Stop containers
+      raw: |
+        cd {{ app_dir }}
+        sudo docker compose down || true
 
-    - name: Show running containers
-      command: docker ps
+    # =========================================================
+    # START APPLICATION
+    # =========================================================
+
+    - name: Start containers
+      raw: |
+        cd {{ app_dir }}
+        sudo docker compose up -d --build
+
+    # =========================================================
+    # VERIFY CONTAINERS
+    # =========================================================
+
+    - name: Verify running containers
+      raw: sudo docker ps
+
       register: docker_output
-      changed_when: false
 
-    - name: Print docker containers
+    - name: Show docker containers
       debug:
         var: docker_output.stdout_lines
