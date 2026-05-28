@@ -7,11 +7,21 @@
     repo_url: "https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git"
     repo_branch: "main"
     app_dir: "/opt/minishop"
+    ansible_python_interpreter: /usr/bin/python3
 
   tasks:
 
     # =========================================================
-    # UPDATE APT CACHE (SAFE MODULE)
+    # BOOTSTRAP PYTHON (REQUIRED FOR SSM)
+    # =========================================================
+    - name: Bootstrap Python
+      raw: |
+        sudo apt-get update -y
+        sudo apt-get install -y python3 python3-pip
+      changed_when: false
+
+    # =========================================================
+    # UPDATE APT CACHE (SAFE NOW)
     # =========================================================
     - name: Update apt cache
       ansible.builtin.apt:
@@ -19,40 +29,37 @@
         cache_valid_time: 3600
 
     # =========================================================
-    # INSTALL SYSTEM PACKAGES (NO RAW)
+    # INSTALL SYSTEM PACKAGES
     # =========================================================
     - name: Install system packages
       ansible.builtin.apt:
         name:
-          - python3
-          - python3-pip
           - git
           - docker.io
           - docker-compose-plugin
         state: present
 
     # =========================================================
-    # ENABLE & START DOCKER
+    # ENABLE DOCKER
     # =========================================================
-    - name: Enable and start Docker
+    - name: Enable Docker
       ansible.builtin.systemd:
         name: docker
         enabled: yes
         state: started
 
     # =========================================================
-    # CREATE APP DIRECTORY
+    # APP DIRECTORY
     # =========================================================
     - name: Create app directory
       ansible.builtin.file:
         path: "{{ app_dir }}"
         state: directory
-        mode: '0755'
 
     # =========================================================
-    # CLONE OR UPDATE REPO
+    # CLONE REPO
     # =========================================================
-    - name: Clone repository
+    - name: Clone repo
       ansible.builtin.git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
@@ -60,16 +67,7 @@
         force: yes
 
     # =========================================================
-    # STOP OLD CONTAINERS
-    # =========================================================
-    - name: Stop containers
-      ansible.builtin.command: docker compose down
-      args:
-        chdir: "{{ app_dir }}"
-      ignore_errors: yes
-
-    # =========================================================
-    # START APPLICATION
+    # START CONTAINERS
     # =========================================================
     - name: Start containers
       ansible.builtin.command: docker compose up -d --build
@@ -77,13 +75,13 @@
         chdir: "{{ app_dir }}"
 
     # =========================================================
-    # VERIFY CONTAINERS
+    # VERIFY
     # =========================================================
-    - name: Check running containers
-      ansible.builtin.command: docker ps
+    - name: Check containers
+      command: docker ps
       register: docker_output
       changed_when: false
 
     - name: Show containers
-      ansible.builtin.debug:
+      debug:
         msg: "{{ docker_output.stdout | default('No containers running') }}"
