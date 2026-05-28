@@ -15,19 +15,17 @@ jobs:
     name: Deploy Application
     runs-on: ubuntu-latest
 
-    environment: production
-
     steps:
 
       # =========================================================
-      # CHECKOUT
+      # CHECKOUT REPOSITORY
       # =========================================================
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       # =========================================================
-      # AWS AUTH
+      # CONFIGURE AWS CREDENTIALS
       # =========================================================
 
       - name: Configure AWS Credentials
@@ -37,10 +35,10 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # =========================================================
-      # INSTALL ANSIBLE + AWS COLLECTION
+      # INSTALL ANSIBLE + AWS COLLECTIONS
       # =========================================================
 
-      - name: Install Dependencies
+      - name: Install Ansible
         run: |
           python -m pip install --upgrade pip
 
@@ -54,25 +52,42 @@ jobs:
 
       - name: Install AWS Session Manager Plugin
         run: |
-          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o session-manager-plugin.deb
 
           sudo dpkg -i session-manager-plugin.deb
 
           session-manager-plugin --version
 
       # =========================================================
+      # GET INSTANCE ID
+      # =========================================================
+
+      - name: Fetch EC2 Instance ID
+        id: ec2
+        run: |
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=instance-state-name,Values=running" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text | head -n 1)
+
+          echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+
+          echo "Using instance: $INSTANCE_ID"
+
+      # =========================================================
       # CREATE INVENTORY FILE
       # =========================================================
 
-      - name: Create Inventory
+      - name: Generate Inventory File
         run: |
-          cat > ansible/hosts.ini <<EOF
+          cat > ansible/inventory.ini <<EOF
           [web]
-          ${{ secrets.INSTANCE_ID }}
+          ${INSTANCE_ID}
 
           [web:vars]
           ansible_connection=amazon.aws.aws_ssm
           ansible_aws_ssm_region=us-east-1
+          ansible_user=ubuntu
           ansible_python_interpreter=/usr/bin/python3
           EOF
 
@@ -82,7 +97,14 @@ jobs:
 
       - name: Verify Inventory
         run: |
-          ansible-inventory -i ansible/hosts.ini --graph
+          ansible-inventory -i ansible/inventory.ini --graph
 
       # =========================================================
       # RUN PLAYBOOK
+      # =========================================================
+
+      - name: Run Ansible Playbook
+        run: |
+          ansible-playbook \
+            -i ansible/inventory.ini \
+            ansible/playbook.yml
