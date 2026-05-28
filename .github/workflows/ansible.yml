@@ -2,11 +2,9 @@ name: Ansible Configuration Management (SSM)
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "ansible/**"
-      - ".github/workflows/ansible.yml"
 
   workflow_dispatch:
 
@@ -19,83 +17,36 @@ env:
 
 jobs:
   ansible:
-    name: Run Ansible via AWS SSM
     runs-on: ubuntu-latest
-
     environment:
       name: production
 
     steps:
 
-      # =========================================================
-      # CHECKOUT REPOSITORY
-      # =========================================================
-
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # =========================================================
-      # CONFIGURE AWS CREDENTIALS (OIDC)
-      # =========================================================
-
-      - name: Configure AWS Credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # =========================================================
-      # INSTALL ANSIBLE + AWS DEPENDENCIES
-      # =========================================================
-
-      - name: Install Ansible Dependencies
+      - name: Install Ansible + AWS dependencies
         run: |
           python -m pip install --upgrade pip
-
-          pip install \
-            ansible \
-            boto3 \
-            botocore \
-            awscli
-
+          pip install ansible boto3 botocore amazon.aws awscli session-manager-plugin
           ansible-galaxy collection install amazon.aws
-          ansible-galaxy collection install community.aws
 
-      # =========================================================
-      # VERIFY AWS AUTH
-      # =========================================================
-
-      - name: Verify AWS Identity
-        run: aws sts get-caller-identity
-
-      # =========================================================
-      # VERIFY INVENTORY
-      # =========================================================
-
-      - name: Verify Inventory Discovery
+      - name: Validate SSM inventory
         run: |
-          cd ansible
-          ansible-inventory -i inventory.aws_ec2.yml --graph
+          ansible-inventory -i ansible/inventory.aws_ec2.yml --graph
 
-      # =========================================================
-      # VERIFY SSM MANAGED INSTANCES
-      # =========================================================
-
-      - name: Verify SSM Connectivity
+      - name: Run playbook via SSM
+        working-directory: ansible
+        env:
+          ANSIBLE_CONFIG: ansible.cfg
         run: |
-          aws ssm describe-instance-information
-
-      # =========================================================
-      # RUN ANSIBLE PLAYBOOK
-      # =========================================================
-
-      - name: Execute Ansible Playbook
-        run: |
-          export ANSIBLE_HOST_KEY_CHECKING=False
-
-          cd ansible
-
           ansible-playbook \
             -i inventory.aws_ec2.yml \
-            playbook.yml \
-            -vvv
+            playbook.yml -vvv
