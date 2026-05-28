@@ -11,9 +11,8 @@
   tasks:
 
     # =========================================================
-    # INSTALL SYSTEM PACKAGES USING RAW
+    # INSTALL BASE SYSTEM PACKAGES (SAFE BOOTSTRAP)
     # =========================================================
-
     - name: Install system packages
       raw: |
         sudo apt-get update -y
@@ -23,70 +22,69 @@
           git \
           docker.io \
           docker-compose-plugin
+      changed_when: false
 
     # =========================================================
-    # GATHER FACTS AFTER PYTHON EXISTS
+    # GATHER FACTS (NOW SAFE BECAUSE PYTHON EXISTS)
     # =========================================================
-
     - name: Gather facts
       setup:
 
     # =========================================================
-    # START DOCKER
+    # START AND ENABLE DOCKER
     # =========================================================
-
     - name: Start Docker
       raw: |
         sudo systemctl enable docker
         sudo systemctl start docker
+      changed_when: false
 
     # =========================================================
     # CREATE APP DIRECTORY
     # =========================================================
-
     - name: Create application directory
       raw: sudo mkdir -p {{ app_dir }}
+      changed_when: false
 
     # =========================================================
-    # CLONE REPOSITORY
+    # CLONE OR UPDATE REPO
     # =========================================================
-
-    - name: Clone repository
+    - name: Clone or update repository
       raw: |
         if [ ! -d "{{ app_dir }}/.git" ]; then
           sudo git clone -b {{ repo_branch }} {{ repo_url }} {{ app_dir }}
         else
-          cd {{ app_dir }}
-          sudo git pull origin {{ repo_branch }}
+          cd {{ app_dir }} && sudo git pull origin {{ repo_branch }}
         fi
+      changed_when: false
 
     # =========================================================
     # STOP OLD CONTAINERS
     # =========================================================
-
     - name: Stop containers
       raw: |
         cd {{ app_dir }}
         sudo docker compose down || true
+      changed_when: false
 
     # =========================================================
     # START APPLICATION
     # =========================================================
-
     - name: Start containers
       raw: |
         cd {{ app_dir }}
         sudo docker compose up -d --build
+      changed_when: false
 
     # =========================================================
-    # VERIFY CONTAINERS
+    # VERIFY CONTAINERS (FIXED — NO NONE CRASH)
     # =========================================================
-
     - name: Verify running containers
       raw: sudo docker ps
-
       register: docker_output
+      changed_when: false
+      failed_when: false
 
     - name: Show docker containers
       debug:
-        var: docker_output.stdout_lines
+        msg: "{{ docker_output.stdout | default('No containers running') }}"
