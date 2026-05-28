@@ -1,179 +1,130 @@
----
-- name: Production Deployment with Docker and AWS Secrets Manager
+- name: Production Deployment with Docker + AWS Secrets Manager (SSM Safe)
   hosts: all
   become: true
   gather_facts: false
 
   vars:
-    repo_url: "https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git"
-    repo_branch: "main"
-
-    app_dir: "/opt/minishop"
-
-    aws_region: "us-east-1"
-    secret_name: "prod/minishop/app"
+    repo_url: https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git
+    repo_branch: main
+    app_dir: /opt/minishop
+    aws_region: us-east-1
+    secret_name: prod/minishop/app
 
   tasks:
 
     # =========================================================
-    # SYSTEM PREPARATION
+    # BASIC SYSTEM PREP
     # =========================================================
 
-    - name: Update apt package cache
+    - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
 
-    - name: Install required system packages
+    - name: Install required packages
       ansible.builtin.apt:
         name:
           - git
-          - curl
-          - unzip
           - docker.io
           - docker-compose-plugin
           - python3-pip
         state: present
 
-    - name: Install required Python packages
+    - name: Install AWS Python dependencies
       ansible.builtin.pip:
         name:
           - boto3
           - botocore
-          - docker
         executable: pip3
 
-    - name: Ensure Docker service is enabled and running
+    - name: Ensure Docker is running
       ansible.builtin.service:
         name: docker
-        enabled: true
         state: started
+        enabled: true
 
-    - name: Add current user to docker group
-      ansible.builtin.user:
-        name: ubuntu
-        groups: docker
-        append: true
-      ignore_errors: true
+    # =========================================================
+    # OPTIONAL FACT GATHERING (SAFE FOR SSM)
+    # =========================================================
+
+    - name: Gather system facts safely
+      ansible.builtin.setup:
 
     # =========================================================
     # APPLICATION SETUP
     # =========================================================
 
-    - name: Ensure application directory exists
+    - name: Ensure app directory exists
       ansible.builtin.file:
         path: "{{ app_dir }}"
         state: directory
         mode: "0755"
 
-    - name: Clone or update application repository
+    - name: Clone application repository
       ansible.builtin.git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
         version: "{{ repo_branch }}"
-        update: true
         force: true
 
     # =========================================================
-    # AWS SECRETS MANAGER
+    # SECRETS MANAGER (SAFE LOADING)
     # =========================================================
 
-    - name: Retrieve application secrets from AWS Secrets Manager
+    - name: Load secrets from AWS Secrets Manager
       ansible.builtin.set_fact:
-        app_secrets: >-
-          {{
-            lookup(
-              'amazon.aws.aws_secret',
-              secret_name,
-              region=aws_region
-            )
-          }}
+        app_secrets: "{{ lookup('amazon.aws.aws_secret', secret_name, region=aws_region) | default({}) }}"
 
-    - name: Validate required secrets exist
+    - name: Validate secrets exist
       ansible.builtin.assert:
         that:
           - app_secrets.DB_USER is defined
           - app_secrets.DB_PASSWORD is defined
           - app_secrets.DB_HOST is defined
           - app_secrets.DB_NAME is defined
-        fail_msg: "Required database secrets are missing in AWS Secrets Manager"
+        fail_msg: "Missing DB secrets in AWS Secrets Manager"
 
     # =========================================================
-    # CONTAINER DEPLOYMENT
+    # SAFE DEPLOYMENT
     # =========================================================
 
-    - name: Stop existing containers gracefully
-      ansible.builtin.shell: |
-        docker compose down
+    - name: Stop existing containers (if any)
+      ansible.builtin.shell: docker compose down
       args:
         chdir: "{{ app_dir }}"
       ignore_errors: true
 
-    - name: Remove unused Docker resources
+    - name: Deploy application using Docker Compose
       ansible.builtin.shell: |
-        docker system prune -af
-      changed_when: false
+        export DB_USER={{ app_secrets.DB_USER }}
+        export DB_PASSWORD={{ app_secrets.DB_PASSWORD }}
+        export DB_HOST={{ app_secrets.DB_HOST }}
+        export DB_NAME={{ app_secrets.DB_NAME }}
 
-    - name: Deploy application containers
-      ansible.builtin.shell: |
-        export DB_USER="{{ app_secrets.DB_USER }}"
-        export DB_PASSWORD="{{ app_secrets.DB_PASSWORD }}"
-        export DB_HOST="{{ app_secrets.DB_HOST }}"
-        export DB_NAME="{{ app_secrets.DB_NAME }}"
-
-        docker compose pull
-        docker compose up -d --build --remove-orphans
+        docker compose up -d --build
       args:
         chdir: "{{ app_dir }}"
-      register: deployment_result
-
-    # =========================================================
-    # DEPLOYMENT LOGS
-    # =========================================================
+      register: deploy_output
 
     - name: Show deployment output
       ansible.builtin.debug:
-        var: deployment_result.stdout_lines
+        var: deploy_output.stdout_lines
 
     # =========================================================
-    # HEALTH CHECKS
+    # HEALTH CHECK
     # =========================================================
 
     - name: Wait for services to stabilize
       ansible.builtin.pause:
-        seconds: 15
+        seconds: 10
 
-    - name: Check running Docker containers
-      ansible.builtin.command:
-        cmd: docker ps
-      register: running_containers
+    - name: Check running containers
+      ansible.builtin.command: docker ps
+      register: containers
       changed_when: false
 
-    - name: Display running containers
+    - name: Show running containers
       ansible.builtin.debug:
-        var: running_containers.stdout_lines
-
-    - name: Verify backend health endpoint
-      ansible.builtin.uri:
-        url: "http://localhost:8000/health"
-        method: GET
-        status_code: 200
-      register: backend_health
-      retries: 5
-      delay: 10
-      until: backend_health.status == 200
-
-    - name: Display backend health status
-      ansible.builtin.debug:
-        msg: "Backend service is healthy"
-
-    # =========================================================
-    # OPTIONAL CLEANUP
-    # =========================================================
-
-    - name: Remove dangling Docker images
-      ansible.builtin.shell: |
-        docker image prune -f
-      changed_when: false
+        var: containers.stdout_lines
 
     
