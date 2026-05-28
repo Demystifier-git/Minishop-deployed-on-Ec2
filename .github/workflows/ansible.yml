@@ -1,90 +1,89 @@
-name: Ansible Configuration Management (SSM)
+- name: Production Deployment (SSM Stable)
+  hosts: all
+  become: true
+  gather_facts: false
 
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - "ansible/**"
-      - ".github/workflows/ansible.yml"
+  vars:
+    repo_url: https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git
+    repo_branch: main
+    app_dir: /opt/minishop
+    aws_region: us-east-1
+    secret_name: prod/minishop/app
 
-  workflow_dispatch:
+  tasks:
 
-permissions:
-  id-token: write
-  contents: read
+    # =========================================================
+    # SYSTEM SETUP (SSM SAFE - NO apt MODULE)
+    # =========================================================
 
-env:
-  AWS_REGION: us-east-1
+    - name: Update system packages
+      ansible.builtin.shell: |
+        sudo apt update -y
 
-jobs:
-  ansible:
-    name: Run Ansible via AWS SSM
-    runs-on: ubuntu-latest
+    - name: Install required packages
+      ansible.builtin.shell: |
+        sudo apt install -y git docker.io docker-compose-plugin python3-pip
 
-    environment:
-      name: production
+    - name: Install AWS Python dependencies
+      ansible.builtin.shell: |
+        pip3 install boto3 botocore
 
-    steps:
+    - name: Start Docker service
+      ansible.builtin.shell: |
+        sudo systemctl enable docker
+        sudo systemctl start docker
 
-      # =========================================================
-      # CHECKOUT REPOSITORY
-      # =========================================================
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    # =========================================================
+    # APP SETUP
+    # =========================================================
 
-      # =========================================================
-      # CONFIGURE AWS CREDENTIALS (OIDC)
-      # =========================================================
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+    - name: Create app directory
+      ansible.builtin.shell: |
+        sudo mkdir -p {{ app_dir }}
 
-      # =========================================================
-      # INSTALL ANSIBLE + AWS DEPENDENCIES
-      # =========================================================
-      - name: Install Ansible and Python dependencies
-        run: |
-          python -m pip install --upgrade pip
+    - name: Clone repo
+      ansible.builtin.shell: |
+        if [ ! -d "{{ app_dir }}/.git" ]; then
+          git clone {{ repo_url }} {{ app_dir }}
+        else
+          cd {{ app_dir }} && git pull
+        fi
 
-          pip install \
-            ansible \
-            boto3 \
-            botocore
+    # =========================================================
+    # SECRETS
+    # =========================================================
 
-      # =========================================================
-      # INSTALL ANSIBLE COLLECTIONS
-      # =========================================================
-      - name: Install Ansible collections
-        run: |
-          ansible-galaxy collection install \
-            amazon.aws \
-            community.aws
+    - name: Fetch secrets
+      ansible.builtin.set_fact:
+        app_secrets: "{{ lookup('amazon.aws.aws_secret', secret_name, region=aws_region) | default({}) }}"
 
-      # =========================================================
-      # INSTALL AWS SESSION MANAGER PLUGIN
-      # =========================================================
-      - name: Install AWS Session Manager Plugin
-        run: |
-          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" \
-            -o session-manager-plugin.deb
+    - name: Validate secrets
+      ansible.builtin.assert:
+        that:
+          - app_secrets.DB_USER is defined
+          - app_secrets.DB_PASSWORD is defined
+          - app_secrets.DB_HOST is defined
+          - app_secrets.DB_NAME is defined
 
-          sudo dpkg -i session-manager-plugin.deb
+    # =========================================================
+    # DEPLOY
+    # =========================================================
 
-      # =========================================================
-      # VERIFY SSM CONNECTIVITY
-      # =========================================================
-      - name: Verify EC2 connectivity through SSM
-        run: |
-          aws ssm describe-instance-information
+    - name: Restart containers
+      ansible.builtin.shell: |
+        cd {{ app_dir }}
 
-      # =========================================================
-      # RUN ANSIBLE PLAYBOOK THROUGH AWS SSM
-      # =========================================================
-      - name: Execute Ansible Playbook
-        run: |
-          ansible-playbook \
-            -i ansible/inventory.aws_ec2.yml \
-            ansible/playbook.yml
+        export DB_USER={{ app_secrets.DB_USER }}
+        export DB_PASSWORD={{ app_secrets.DB_PASSWORD }}
+        export DB_HOST={{ app_secrets.DB_HOST }}
+        export DB_NAME={{ app_secrets.DB_NAME }}
+
+        docker compose down || true
+        docker compose up -d --build
+
+    # =========================================================
+    # VERIFY
+    # =========================================================
+
+    - name: Show containers
+      ansible.builtin.shell: docker ps
