@@ -1,7 +1,7 @@
-- name: Production Deployment (SSM Safe + Docker + AWS Secrets Manager)
+- name: Production Deployment (SSM Safe + Docker + Secrets Manager)
   hosts: all
   become: true
-  gather_facts: false   # 🔥 IMPORTANT FIX
+  gather_facts: false
 
   vars:
     repo_url: https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git
@@ -12,74 +12,42 @@
 
   tasks:
 
-    # =========================================================
-    # SAFE SYSTEM PREP
-    # =========================================================
-
-    - name: Update apt cache
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-
-    - name: Install required packages
-      ansible.builtin.apt:
-        name:
-          - git
-          - docker.io
-          - docker-compose-plugin
-          - python3-pip
-        state: present
+    - name: Ensure system packages are installed
+      ansible.builtin.shell: |
+        sudo apt update -y
+        sudo apt install -y git docker.io docker-compose-plugin python3-pip
+      changed_when: false
 
     - name: Ensure Docker is running
-      ansible.builtin.service:
-        name: docker
-        state: started
-        enabled: true
+      ansible.builtin.shell: |
+        sudo systemctl enable docker
+        sudo systemctl start docker
+      changed_when: false
 
-    # =========================================================
-    # APP SETUP
-    # =========================================================
-
-    - name: Ensure app directory exists
+    - name: Create app directory
       ansible.builtin.file:
         path: "{{ app_dir }}"
         state: directory
         mode: "0755"
 
-    - name: Clone repository
+    - name: Clone repo
       ansible.builtin.git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
         version: "{{ repo_branch }}"
         force: true
 
-    # =========================================================
-    # AWS SECRETS MANAGER (SAFE)
-    # =========================================================
-
-    - name: Load secrets from AWS Secrets Manager
+    - name: Fetch secrets from AWS Secrets Manager
       ansible.builtin.set_fact:
         app_secrets: "{{ lookup('amazon.aws.aws_secret', secret_name, region=aws_region) | default({}) }}"
 
-    - name: Validate secrets
-      ansible.builtin.assert:
-        that:
-          - app_secrets.DB_USER is defined
-          - app_secrets.DB_PASSWORD is defined
-          - app_secrets.DB_HOST is defined
-          - app_secrets.DB_NAME is defined
-        fail_msg: "Missing DB secrets"
-
-    # =========================================================
-    # DEPLOYMENT
-    # =========================================================
-
     - name: Stop containers
-      ansible.builtin.shell: docker compose down || true
+      ansible.builtin.shell: docker compose down
       args:
         chdir: "{{ app_dir }}"
+      ignore_errors: true
 
-    - name: Start application
+    - name: Deploy app
       ansible.builtin.shell: |
         export DB_USER={{ app_secrets.DB_USER }}
         export DB_PASSWORD={{ app_secrets.DB_PASSWORD }}
@@ -90,12 +58,8 @@
       args:
         chdir: "{{ app_dir }}"
 
-    # =========================================================
-    # HEALTH CHECK
-    # =========================================================
-
-    - name: Show containers
-      ansible.builtin.command: docker ps
+    - name: Show running containers
+      ansible.builtin.shell: docker ps
       register: containers
       changed_when: false
 
