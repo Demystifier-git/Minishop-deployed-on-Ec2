@@ -1,90 +1,69 @@
-----
-- name: Production Deployment (SSM Stable)
-  hosts: all
-  become: true
-  gather_facts: false
+name: Ansible Configuration Management (SSM)
 
-  vars:
-    repo_url: https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git
-    repo_branch: main
-    app_dir: /opt/minishop
-    aws_region: us-east-1
-    secret_name: prod/minishop/app
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "ansible/**"
+      - ".github/workflows/ansible.yml"
 
-  tasks:
+  workflow_dispatch:
 
-    # =========================================================
-    # SYSTEM SETUP (SSM SAFE - NO apt MODULE)
-    # =========================================================
+permissions:
+  id-token: write
+  contents: read
 
-    - name: Update system packages
-      ansible.builtin.shell: |
-        sudo apt update -y
+env:
+  AWS_REGION: us-east-1
 
-    - name: Install required packages
-      ansible.builtin.shell: |
-        sudo apt install -y git docker.io docker-compose-plugin python3-pip
+jobs:
+  ansible:
+    name: Run Ansible via AWS SSM
+    runs-on: ubuntu-latest
 
-    - name: Install AWS Python dependencies
-      ansible.builtin.shell: |
-        pip3 install boto3 botocore
+    environment:
+      name: production
 
-    - name: Start Docker service
-      ansible.builtin.shell: |
-        sudo systemctl enable docker
-        sudo systemctl start docker
+    steps:
 
-    # =========================================================
-    # APP SETUP
-    # =========================================================
+      # =========================================================
+      # CHECKOUT REPOSITORY
+      # =========================================================
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Create app directory
-      ansible.builtin.shell: |
-        sudo mkdir -p {{ app_dir }}
+      # =========================================================
+      # CONFIGURE AWS CREDENTIALS (OIDC)
+      # =========================================================
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Clone repo
-      ansible.builtin.shell: |
-        if [ ! -d "{{ app_dir }}/.git" ]; then
-          git clone {{ repo_url }} {{ app_dir }}
-        else
-          cd {{ app_dir }} && git pull
-        fi
-
-    # =========================================================
-    # SECRETS
-    # =========================================================
-
-    - name: Fetch secrets
-      ansible.builtin.set_fact:
-        app_secrets: "{{ lookup('amazon.aws.aws_secret', secret_name, region=aws_region) | default({}) }}"
-
-    - name: Validate secrets
-      ansible.builtin.assert:
-        that:
-          - app_secrets.DB_USER is defined
-          - app_secrets.DB_PASSWORD is defined
-          - app_secrets.DB_HOST is defined
-          - app_secrets.DB_NAME is defined
-
-    # =========================================================
-    # DEPLOY
-    # =========================================================
-
-    - name: Restart containers
-      ansible.builtin.shell: |
-        cd {{ app_dir }}
-
-        export DB_USER={{ app_secrets.DB_USER }}
-        export DB_PASSWORD={{ app_secrets.DB_PASSWORD }}
-        export DB_HOST={{ app_secrets.DB_HOST }}
-        export DB_NAME={{ app_secrets.DB_NAME }}
-
-        docker compose down || true
-        docker compose up -d --build
-
-    # =========================================================
-    # VERIFY
-    # =========================================================
-
-    - name: Show containers
-      ansible.builtin.shell: docker ps
+      # =========================================================
+      # INSTALL ANSIBLE + AWS SSM PLUGIN
+      # =========================================================
+      - name: Install Ansible and AWS collections
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            ansible \
+            boto3 \
+            botocore
+          ansible-galaxy collection install amazon.aws
+      # =========================================================
+      # VERIFY SSM INSTANCE CONNECTIVITY
+      # =========================================================
+      - name: Verify EC2 is online in SSM
+        run: |
+          aws ssm describe-instance-information
+      # =========================================================
+      # RUN ANSIBLE PLAYBOOK THROUGH SSM
+      # =========================================================
+      - name: Execute Ansible Playbook
+        run: |
+          ansible-playbook \
+            -i ansible/inventory.ini \
+            ansible/playbook.yml
