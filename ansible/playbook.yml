@@ -1,75 +1,38 @@
 - name: Production Deployment (SSM + Docker)
   hosts: web
-  become: true
-  gather_facts: false
+  become: false
+  gather_facts: true
 
   vars:
     repo_url: "https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git"
     repo_branch: "main"
     app_dir: "/opt/minishop"
-    ansible_python_interpreter: /usr/bin/python3
 
   tasks:
 
     # =========================================================
-    # FIXED BOOTSTRAP (NO RAW — THIS FIXES YOUR CRASH)
+    # VERIFY DOCKER EXISTS
     # =========================================================
-    - name: Bootstrap system packages
-      ansible.builtin.command: >
-        bash -c "sudo apt-get update -y &&
-                 sudo apt-get install -y python3 python3-pip git docker.io docker-compose-plugin"
+    - name: Check Docker
+      command: docker --version
+      register: docker_check
       changed_when: false
 
     # =========================================================
-    # ENABLE DOCKER
-    # =========================================================
-    - name: Enable Docker
-      ansible.builtin.command: sudo systemctl enable --now docker
-      changed_when: false
-
-    # =========================================================
-    # CREATE APP DIRECTORY
+    # CREATE APP DIR
     # =========================================================
     - name: Create app directory
-      ansible.builtin.file:
+      file:
         path: "{{ app_dir }}"
         state: directory
+        mode: '0755'
 
     # =========================================================
     # CLONE REPO
     # =========================================================
     - name: Clone repository
-      ansible.builtin.git:
+      git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
         version: "{{ repo_branch }}"
         force: yes
-
-    # =========================================================
-    # STOP CONTAINERS
-    # =========================================================
-    - name: Stop containers
-      ansible.builtin.command: docker compose down
-      args:
-        chdir: "{{ app_dir }}"
-      ignore_errors: yes
-
-    # =========================================================
-    # START CONTAINERS
-    # =========================================================
-    - name: Start containers
-      ansible.builtin.command: docker compose up -d --build
-      args:
-        chdir: "{{ app_dir }}"
-
-    # =========================================================
-    # VERIFY
-    # =========================================================
-    - name: Check containers
-      ansible.builtin.command: docker ps
-      register: docker_output
-      changed_when: false
-
-    - name: Show containers
-      debug:
-        msg: "{{ docker_output.stdout | default('No containers running') }}"
