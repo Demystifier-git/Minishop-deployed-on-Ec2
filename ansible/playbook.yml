@@ -11,80 +11,79 @@
   tasks:
 
     # =========================================================
-    # INSTALL BASE SYSTEM PACKAGES (SAFE BOOTSTRAP)
+    # UPDATE APT CACHE (SAFE MODULE)
+    # =========================================================
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    # =========================================================
+    # INSTALL SYSTEM PACKAGES (NO RAW)
     # =========================================================
     - name: Install system packages
-      raw: |
-        sudo apt-get update -y
-        sudo apt-get install -y \
-          python3 \
-          python3-pip \
-          git \
-          docker.io \
-          docker-compose-plugin
-      changed_when: false
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - git
+          - docker.io
+          - docker-compose-plugin
+        state: present
 
     # =========================================================
-    # GATHER FACTS (NOW SAFE BECAUSE PYTHON EXISTS)
+    # ENABLE & START DOCKER
     # =========================================================
-    - name: Gather facts
-      setup:
-
-    # =========================================================
-    # START AND ENABLE DOCKER
-    # =========================================================
-    - name: Start Docker
-      raw: |
-        sudo systemctl enable docker
-        sudo systemctl start docker
-      changed_when: false
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: yes
+        state: started
 
     # =========================================================
     # CREATE APP DIRECTORY
     # =========================================================
-    - name: Create application directory
-      raw: sudo mkdir -p {{ app_dir }}
-      changed_when: false
+    - name: Create app directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
 
     # =========================================================
     # CLONE OR UPDATE REPO
     # =========================================================
-    - name: Clone or update repository
-      raw: |
-        if [ ! -d "{{ app_dir }}/.git" ]; then
-          sudo git clone -b {{ repo_branch }} {{ repo_url }} {{ app_dir }}
-        else
-          cd {{ app_dir }} && sudo git pull origin {{ repo_branch }}
-        fi
-      changed_when: false
+    - name: Clone repository
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ repo_branch }}"
+        force: yes
 
     # =========================================================
     # STOP OLD CONTAINERS
     # =========================================================
     - name: Stop containers
-      raw: |
-        cd {{ app_dir }}
-        sudo docker compose down || true
-      changed_when: false
+      ansible.builtin.command: docker compose down
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
 
     # =========================================================
     # START APPLICATION
     # =========================================================
     - name: Start containers
-      raw: |
-        cd {{ app_dir }}
-        sudo docker compose up -d --build
-      changed_when: false
+      ansible.builtin.command: docker compose up -d --build
+      args:
+        chdir: "{{ app_dir }}"
 
     # =========================================================
-    # VERIFY CONTAINERS (FIXED — NO NONE CRASH)
+    # VERIFY CONTAINERS
     # =========================================================
-    - name: Verify running containers
-      raw: sudo docker ps
+    - name: Check running containers
+      ansible.builtin.command: docker ps
       register: docker_output
       changed_when: false
-      failed_when: false
 
-    - name: Show docker containers
-      debug:
+    - name: Show containers
+      ansible.builtin.debug:
         msg: "{{ docker_output.stdout | default('No containers running') }}"
