@@ -1,5 +1,6 @@
+---
 - name: Production Deployment (SSM + Docker)
-  hosts: aws_ec2
+  hosts: web
   become: true
   gather_facts: false
 
@@ -7,40 +8,53 @@
     repo_url: https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git
     repo_branch: main
     app_dir: /opt/minishop
-    aws_region: us-east-1
 
   tasks:
 
-    - name: Ensure system packages are installed
-      ansible.builtin.apt:
-        name:
-          - git
-          - docker.io
-          - docker-compose-plugin
-          - python3-pip
-        state: present
-        update_cache: true
+    - name: Install system packages
+      raw: |
+        apt-get update &&
+        apt-get install -y docker.io docker-compose-plugin git python3 python3-pip
+      changed_when: true
 
-    - name: Ensure Docker is running
-      ansible.builtin.service:
+    - name: Gather facts
+      setup:
+
+    - name: Ensure docker service is running
+      service:
         name: docker
         state: started
         enabled: true
 
-    - name: Create app directory
-      ansible.builtin.file:
+    - name: Ensure application directory exists
+      file:
         path: "{{ app_dir }}"
         state: directory
-        mode: "0755"
+        mode: '0755'
 
     - name: Clone repository
-      ansible.builtin.git:
+      git:
         repo: "{{ repo_url }}"
         dest: "{{ app_dir }}"
         version: "{{ repo_branch }}"
         force: true
 
-    - name: Restart application
-      ansible.builtin.shell: docker compose up -d --build
+    - name: Stop old containers
+      shell: docker compose down
       args:
         chdir: "{{ app_dir }}"
+      ignore_errors: true
+
+    - name: Start application
+      shell: docker compose up -d --build
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Show running containers
+      command: docker ps
+      register: docker_output
+      changed_when: false
+
+    - name: Print docker containers
+      debug:
+        var: docker_output.stdout_lines
