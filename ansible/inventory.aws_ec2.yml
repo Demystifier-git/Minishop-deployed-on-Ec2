@@ -12,4 +12,5 @@ hostnames:
 compose:
   ansible_connection: community.aws.aws_ssm
   ansible_aws_ssm_region: us-east-1
-  ansible_shell_type: sh
+
+strict: false

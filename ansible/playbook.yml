@@ -1,5 +1,6 @@
 - name: Production Deployment (SSM + Docker)
   hosts: all
+  connection: community.aws.aws_ssm
   become: true
   gather_facts: false
 
