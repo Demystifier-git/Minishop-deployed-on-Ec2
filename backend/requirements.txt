@@ -3,3 +3,4 @@ uvicorn
 pymongo
 prometheus-client
 boto3
+mysql-connector-python
