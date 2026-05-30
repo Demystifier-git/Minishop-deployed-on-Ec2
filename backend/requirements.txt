@@ -2,3 +2,4 @@ fastapi
 uvicorn
 pymongo
 prometheus-client
+boto3
