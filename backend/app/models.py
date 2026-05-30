@@ -1,9 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class Product(BaseModel):
-    name: str
-    price: float
+    name: str = Field(..., min_length=1)
+    price: float = Field(..., gt=0)
+    description: str | None = None
+
 
 class User(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=6)
