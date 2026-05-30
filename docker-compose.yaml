@@ -10,17 +10,16 @@ services:
     container_name: backend
     restart: unless-stopped
 
-    expose:
-      - "8000"
+    # IMPORTANT: ALB / EC2 must access this
+    ports:
+      - "8000:8000"
 
     environment:
-      # DB from Secrets Manager (injected by host)
       DB_HOST: ${DB_HOST}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
 
-      # OpenTelemetry
       OTEL_SERVICE_NAME: backend
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
@@ -49,8 +48,9 @@ services:
     container_name: frontend
     restart: unless-stopped
 
-    expose:
-      - "80"
+    # IMPORTANT: if ALB routes to frontend, expose it
+    ports:
+      - "80:80"
 
     depends_on:
       - backend
@@ -64,14 +64,15 @@ services:
     container_name: prometheus
     restart: unless-stopped
 
-    expose:
-      - "9090"
+    # CHANGE: expose → ports (needed for ALB or EC2 access)
+    ports:
+      - "9090:9090"
 
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
 
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
+      - "--config.file=/etc/prometheus/prometheus.yml"
 
     logging:
       <<: *default-logging
@@ -82,8 +83,9 @@ services:
     container_name: grafana
     restart: unless-stopped
 
-    expose:
-      - "3000"
+    # IMPORTANT for ALB routing
+    ports:
+      - "3000:3000"
 
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
@@ -120,6 +122,7 @@ services:
     container_name: loki
     restart: unless-stopped
 
+    # internal only (correct)
     expose:
       - "3100"
 
