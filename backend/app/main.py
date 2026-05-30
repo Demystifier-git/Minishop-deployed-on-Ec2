@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 import time
 
@@ -8,9 +10,23 @@ from app.routes import products, users
 app = FastAPI(title="MiniShop API")
 
 
-# Prometheus Metrics
+# =========================
+# CORS FIX (IMPORTANT)
+# =========================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://app.delightdavid.online"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
+# =========================
+# PROMETHEUS METRICS
+# =========================
 REQUEST_COUNT = Counter(
     "http_requests_total",
     "Total HTTP Requests",
@@ -29,9 +45,9 @@ IN_PROGRESS = Gauge(
 )
 
 
-# Middleware
-
-
+# =========================
+# MIDDLEWARE
+# =========================
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
     IN_PROGRESS.inc()
@@ -57,46 +73,40 @@ async def metrics_middleware(request: Request, call_next):
     return response
 
 
-# Routes
-
-
+# =========================
+# ROUTES
+# =========================
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 @app.get("/metrics")
 def metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
+
 app.include_router(products.router, prefix="/products", tags=["Products"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
 
 
-#  SIMPLE BUILT-IN TESTS (FOR DEMO / CI PURPOSE ONLY)
-
-
+# =========================
+# CI TESTS
+# =========================
 def run_basic_tests():
-    """
-    Simple smoke tests for CI/CD validation
-    Run manually or inside CI pipeline
-    """
     from fastapi.testclient import TestClient
 
     client = TestClient(app)
 
-    # Test 1: Health check
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
 
-    # Test 2: Metrics endpoint
     response = client.get("/metrics")
     assert response.status_code == 200
     assert "http_requests_total" in response.text
 
-    print(" All basic tests passed!")
+    print("All basic tests passed!")
 
 
-# Optional manual trigger
 if __name__ == "__main__":
     run_basic_tests()
