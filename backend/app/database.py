@@ -6,22 +6,20 @@ import mysql.connector
 SECRET_NAME = "prod/minishop/app"
 REGION_NAME = "us-east-1"
 
-# ---- CONNECT TO SECRETS MANAGER ----
 client = boto3.client("secretsmanager", region_name=REGION_NAME)
 
 try:
-    # Fetch secret from AWS
     response = client.get_secret_value(SecretId=SECRET_NAME)
 
-    # Parse JSON secret
+    # ✅ FIX: Secrets Manager key/value format returns JSON string of flat keys
     secret = json.loads(response["SecretString"])
 
-    DB_HOST = secret["host"]
-    DB_USER = secret["username"]
-    DB_PASSWORD = secret["password"]
-    DB_NAME = secret["dbname"]
+    # ✅ USE EXACT KEYS FROM YOUR SECRET MANAGER
+    DB_HOST = secret["DB_HOST"]
+    DB_USER = secret["DB_USER"]
+    DB_PASSWORD = secret["DB_PASSWORD"]
+    DB_NAME = secret["DB_NAME"]
 
-    # ---- CONNECT TO RDS MYSQL ----
     conn = mysql.connector.connect(
         host=DB_HOST,
         user=DB_USER,
