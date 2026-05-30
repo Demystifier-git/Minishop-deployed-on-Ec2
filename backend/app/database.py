@@ -3,7 +3,7 @@ import json
 import mysql.connector
 
 # ---- CONFIG ----
-SECRET_NAME = "prod/mysql/credentials"
+SECRET_NAME = "prod/minishop/app"
 REGION_NAME = "us-east-1"
 
 # ---- CONNECT TO SECRETS MANAGER ----
