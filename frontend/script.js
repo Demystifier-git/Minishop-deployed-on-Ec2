@@ -1,7 +1,7 @@
 const API_BASE = "https://api.delightdavid.online";
 
 async function loadProducts() {
-  const res = await fetch(`${API_BASE}/products`);
+  const res = await fetch(`${API_BASE}/products/`);
   const data = await res.json();
 
   const list = document.getElementById("products");
@@ -18,7 +18,7 @@ async function addProduct() {
   const name = document.getElementById("name").value;
   const price = parseFloat(document.getElementById("price").value);
 
-  await fetch(`${API_BASE}/products`, {
+  await fetch(`${API_BASE}/products/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -29,5 +29,4 @@ async function addProduct() {
   loadProducts();
 }
 
-// Load products on page load
 window.onload = loadProducts;
