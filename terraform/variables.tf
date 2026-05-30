@@ -175,5 +175,8 @@ variable "smtp_from" {
   type = string
 }
 
-
+variable "db_host" {
+  description = "database host"
+  type        = string
+}
 

@@ -188,6 +188,7 @@ module "app_secret" {
     DB_USER     = var.db_username
     DB_PASSWORD = var.db_password
     DB_NAME     = var.db_name
+    DB_HOST    = var.db_host
   })
 
   tags = {
