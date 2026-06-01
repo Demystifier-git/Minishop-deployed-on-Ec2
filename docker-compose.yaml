@@ -165,6 +165,14 @@ services:
 
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro
+
+    environment:  
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
+      - HOST_FS=/host
 
     expose:
       - "4317"
