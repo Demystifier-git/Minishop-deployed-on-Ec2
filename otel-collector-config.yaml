@@ -10,7 +10,6 @@ receivers:
     scrapers:
       cpu:
       memory:
-      disk:
       filesystem:
       network:
       load:
