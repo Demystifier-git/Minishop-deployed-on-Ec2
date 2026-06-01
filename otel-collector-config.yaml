@@ -13,7 +13,7 @@ receivers:
       filesystem:
       network:
       load:
-      paging:
+      
 
 processors:
   batch:
