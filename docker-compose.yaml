@@ -167,7 +167,7 @@ services:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
-      - /:/host:ro
+      - /:/hostfs:ro
 
     environment:  
       - HOST_PROC=/host/proc
