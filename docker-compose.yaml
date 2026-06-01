@@ -165,8 +165,8 @@ services:
 
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
+      - /proc:/hostfs/proc:ro
+      - /sys:/hostfs/sys:ro
       - /:/hostfs:ro
 
     environment:  
