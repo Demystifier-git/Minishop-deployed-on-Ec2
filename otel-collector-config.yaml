@@ -4,11 +4,21 @@ receivers:
       grpc:
       http:
 
+  hostmetrics:
+    collection_interval: 10s
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      filesystem:
+      network:
+      load:
+      paging:
+
 processors:
   batch:
 
 exporters:
-
   prometheus:
     endpoint: "0.0.0.0:8889"
 
@@ -22,7 +32,7 @@ service:
   pipelines:
 
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, hostmetrics]
       processors: [batch]
       exporters: [prometheus]
 
