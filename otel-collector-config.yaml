@@ -7,16 +7,26 @@ receivers:
   hostmetrics:
     collection_interval: 10s
     root_path: /hostfs
+
     scrapers:
-      cpu:
-      memory:
+      cpu: {}
+      memory: {}
+      load: {}
+
       filesystem:
-      network:
-      load:
-      
+        include_mount_points:
+          - /
+        exclude_fs_types:
+          - tmpfs
+          - devtmpfs
+
+      network: {}
+      disk: {}
 
 processors:
   batch:
+    timeout: 5s
+    send_batch_size: 1024
 
 exporters:
   prometheus:
@@ -32,16 +42,26 @@ service:
   pipelines:
 
     metrics:
-      receivers: [otlp, hostmetrics]
-      processors: [batch]
-      exporters: [prometheus]
+      receivers:
+        - otlp
+        - hostmetrics
+      processors:
+        - batch
+      exporters:
+        - prometheus
 
     logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [loki]
+      receivers:
+        - otlp
+      processors:
+        - batch
+      exporters:
+        - loki
 
     traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [logging]
+      receivers:
+        - otlp
+      processors:
+        - batch
+      exporters:
+        - logging
