@@ -170,9 +170,9 @@ services:
       - /:/hostfs:ro
 
     environment:  
-      - HOST_PROC=/host/proc
-      - HOST_SYS=/host/sys
-      - HOST_FS=/host
+      - HOST_PROC=/hostfs/proc
+      - HOST_SYS=/hostfs/sys
+      - HOST_FS=/hostfs
 
     expose:
       - "4317"
