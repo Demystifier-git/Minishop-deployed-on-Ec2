@@ -12,7 +12,6 @@ on:
       version:
         description: "Semantic version tag (example: v1.0.0)"
         required: true
-        default: "v1.0.0"
         type: string
 
 permissions:
@@ -34,128 +33,117 @@ jobs:
 
     steps:
 
-      # =========================================================
-      # CHECKOUT SOURCE CODE (MANUAL BRANCH CONTROLLED)
-      # =========================================================
-      - name: Checkout source code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
+    # ------------------------
+    # Checkout Code
+    # ------------------------
+    - name: Checkout source code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.branch }}
 
-      # =========================================================
-      # VALIDATION STEP
-      # =========================================================
-      - name: Validate inputs
-        run: |
-          echo "Branch: ${{ github.event.inputs.branch }}"
-          echo "Version: ${{ github.event.inputs.version }}"
+    # ------------------------
+    # Validate Version
+    # ------------------------
+    - name: Validate version format
+      run: |
+        VERSION="${{ github.event.inputs.version }}"
 
-      # Strict SemVer validation
-      - name: Validate version format
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
+        if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "ERROR: Version must follow v1.2.3 format"
+          exit 1
+        fi
 
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "ERROR: Version must follow v1.2.3 format"
-            exit 1
-          fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+    # ------------------------
+    # AWS Auth (OIDC)
+    # ------------------------
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
 
-      # =========================================================
-      # AWS AUTH (OIDC)
-      # =========================================================
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+    # ------------------------
+    # Login to ECR
+    # ------------------------
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
 
-      # =========================================================
-      # LOGIN TO ECR
-      # =========================================================
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+    - name: Set registry
+      run: |
+        echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
 
-      - name: Set registry
-        run: |
-          echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
+    # ------------------------
+    # Build Images (TAG = VERSION ONLY)
+    # ------------------------
+    - name: Build backend image
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_BACKEND_REPO:$VERSION ./backend
 
-      # =========================================================
-      # BUILD IMAGES
-      # =========================================================
-      - name: Build backend image
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_BACKEND_REPO:$VERSION ./backend
-          docker tag $ECR_REGISTRY/$ECR_BACKEND_REPO:$VERSION \
-                     $ECR_REGISTRY/$ECR_BACKEND_REPO:latest
+    - name: Build frontend image
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION ./frontend
 
-      - name: Build frontend image
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION ./frontend
-          docker tag $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION \
-                     $ECR_REGISTRY/$ECR_FRONTEND_REPO:latest
+    # ------------------------
+    # Push Images (ONLY VERSION TAG)
+    # ------------------------
+    - name: Push backend image
+      run: |
+        docker push $ECR_REGISTRY/$ECR_BACKEND_REPO:$VERSION
 
-      # =========================================================
-      # PUSH IMAGES
-      # =========================================================
-      - name: Push backend image
-        run: |
-          docker push $ECR_REGISTRY/$ECR_BACKEND_REPO:$VERSION
-          docker push $ECR_REGISTRY/$ECR_BACKEND_REPO:latest
+    - name: Push frontend image
+      run: |
+        docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION
 
-      - name: Push frontend image
-        run: |
-          docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION
-          docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:latest
+    # ------------------------
+    # Deploy via SSM
+    # ------------------------
+    - name: Deploy application via SSM
+      run: |
+        COMMAND_ID=$(aws ssm send-command \
+          --instance-ids "$INSTANCE_ID" \
+          --document-name "AWS-RunShellScript" \
+          --comment "Production deploy $VERSION" \
+          --parameters "commands=[
+            \"set -e\",
 
-      # =========================================================
-      # DEPLOY VIA SSM (PRODUCTION SAFE)
-      # =========================================================
-      - name: Deploy application via SSM
-        run: |
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --comment "Production deploy $VERSION" \
-            --parameters "commands=[
-              \"set -e\",
+            \"echo Logging into ECR...\",
+            \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
 
-              \"echo Logging into ECR...\",
-              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
+            \"echo Deploying version $VERSION\",
 
-              \"echo Deploying version: $VERSION\",
+            \"cd /app/Minishop-deployed-on-Ec2\",
 
-              \"cd /app\",
+            \"export VERSION=$VERSION\",
+            \"export ECR_REGISTRY=$ECR_REGISTRY\",
 
-              \"docker compose pull\",
+            \"docker compose pull\",
+            \"docker compose up -d\",
 
-              \"docker compose up -d\",
+            \"docker image prune -f\"
+          ]" \
+          --query 'Command.CommandId' \
+          --output text)
 
-              \"docker image prune -af\"
-            ]" \
-            --query 'Command.CommandId' \
-            --output text)
+        echo "COMMAND_ID=$COMMAND_ID" >> $GITHUB_ENV
 
-          echo "COMMAND_ID=$COMMAND_ID" >> $GITHUB_ENV
+    # Wait for execution
+   
+    - name: Wait for SSM execution
+      run: |
+        aws ssm wait command-executed \
+          --command-id "$COMMAND_ID" \
+          --instance-id "$INSTANCE_ID"
 
-      # =========================================================
-      # WAIT FOR EXECUTION
-      # =========================================================
-      - name: Wait for SSM execution
-        run: |
-          aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID"
-
-      # =========================================================
-      # OUTPUT LOGS
-      # =========================================================
-      - name: Show deployment logs
-        run: |
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID" \
-            --query 'StandardOutputContent' \
-            --output text
+    
+    # Show logs
+    
+    - name: Show deployment logs
+      run: |
+        aws ssm get-command-invocation \
+          --command-id "$COMMAND_ID" \
+          --instance-id "$INSTANCE_ID" \
+          --query 'StandardOutputContent' \
+          --output text
