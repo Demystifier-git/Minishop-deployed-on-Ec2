@@ -1,8 +1,8 @@
 receivers:
   otlp:
     protocols:
-      grpc:
-      http:
+      grpc: {}
+      http: {}
 
   hostmetrics:
     collection_interval: 10s
@@ -15,10 +15,15 @@ receivers:
 
       filesystem:
         include_mount_points:
-          - /
+          match_type: strict
+          mount_points:
+            - /
+
         exclude_fs_types:
-          - tmpfs
-          - devtmpfs
+          match_type: strict
+          fs_types:
+            - tmpfs
+            - devtmpfs
 
       network: {}
       disk: {}
