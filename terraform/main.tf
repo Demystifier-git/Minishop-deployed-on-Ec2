@@ -167,6 +167,19 @@ module "ecr" {
   }
 }
 
+module "ecr_frontend" {
+  source = "./modules/ecr"
+
+  repository_name      = "minishop-frontend"
+  image_tag_mutability = var.ecr_image_tag_mutability
+  scan_on_push         = var.ecr_scan_on_push
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
 module "app_secret" {
   source = "./modules/secrets-manager"
 
