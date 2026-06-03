@@ -15,7 +15,6 @@ on:
           - all
 
       version:
-        description: Docker image tag (example: v1.0.0)
         required: true
         type: string
 
