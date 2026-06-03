@@ -47,40 +47,42 @@ jobs:
 
         run: |
 
+          CMD_BASE=(
+            "set -e"
+            "cd /app/Minishop-deployed-on-Ec2"
+            "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY"
+          )
+
           if [ "$SERVICE" = "backend" ]; then
 
-            COMMANDS='[
-              "set -e",
-              "cd /app/Minishop-deployed-on-Ec2",
-              "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin '"$ECR_REGISTRY"'",
-              "docker pull '"$ECR_REGISTRY"'/minishop-backend:'"$VERSION"'",
+            CMD=(
+              "${CMD_BASE[@]}"
+              "docker pull $ECR_REGISTRY/minishop-backend:$VERSION"
               "docker compose up -d backend"
-            ]'
+            )
 
           elif [ "$SERVICE" = "frontend" ]; then
 
-            COMMANDS='[
-              "set -e",
-              "cd /app/Minishop-deployed-on-Ec2",
-              "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin '"$ECR_REGISTRY"'",
-              "docker pull '"$ECR_REGISTRY"'/minishop-frontend:'"$VERSION"'",
+            CMD=(
+              "${CMD_BASE[@]}"
+              "docker pull $ECR_REGISTRY/minishop-frontend:$VERSION"
               "docker compose up -d frontend"
-            ]'
+            )
 
           else
 
-            COMMANDS='[
-              "set -e",
-              "cd /app/Minishop-deployed-on-Ec2",
-              "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin '"$ECR_REGISTRY"'",
-              "docker pull '"$ECR_REGISTRY"'/minishop-backend:'"$VERSION"'",
-              "docker pull '"$ECR_REGISTRY"'/minishop-frontend:'"$VERSION"'",
+            CMD=(
+              "${CMD_BASE[@]}"
+              "docker pull $ECR_REGISTRY/minishop-backend:$VERSION"
+              "docker pull $ECR_REGISTRY/minishop-frontend:$VERSION"
               "docker compose up -d"
-            ]'
+            )
 
           fi
 
+          COMMANDS_JSON=$(printf '%s\n' "${CMD[@]}" | jq -R . | jq -s .)
+
           aws ssm send-command \
-            --instance-ids "$PROD_INSTANCE_ID" \
+            --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --parameters commands="$COMMANDS"
+            --parameters "commands=$COMMANDS_JSON"
