@@ -3,10 +3,7 @@ version: "3.8"
 services:
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-
+    image: 387041334219.dkr.ecr.us-east-1.amazonaws.com/minishop-backend:${VERSION}
     container_name: backend
     restart: unless-stopped
 
@@ -41,10 +38,7 @@ services:
 
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-
+    image: 387041334219.dkr.ecr.us-east-1.amazonaws.com/minishop-frontend:${VERSION}
     container_name: frontend
     restart: unless-stopped
 
