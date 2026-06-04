@@ -3,6 +3,15 @@ name: Production Deploy to Private EC2 (Manual)
 on:
   workflow_dispatch:
     inputs:
+      service:
+        description: "Service to deploy"
+        required: true
+        type: choice
+        options:
+          - backend
+          - frontend
+          - all
+
       branch:
         description: "Git branch to deploy"
         required: true
@@ -33,68 +42,95 @@ jobs:
 
     steps:
 
-    # ------------------------
-    # Checkout Code
-    # ------------------------
-    - name: Checkout source code
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.inputs.branch }}
+      # ------------------------
+      # Checkout Code
+      # ------------------------
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
-    # ------------------------
-    # Validate Version
-    # ------------------------
-    - name: Validate version format
-      run: |
-        VERSION="${{ github.event.inputs.version }}"
+      # ------------------------
+      # Validate Version
+      # ------------------------
+      - name: Validate version format
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
 
-        if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "ERROR: Version must follow v1.2.3 format"
-          exit 1
-        fi
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Version must follow v1.2.3 format"
+            exit 1
+          fi
 
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-    # ------------------------
-    # AWS Auth (OIDC)
-    # ------------------------
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
+      # ------------------------
+      # AWS Auth (OIDC)
+      # ------------------------
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    # ------------------------
-    # Login to ECR
-    # ------------------------
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
+      # ------------------------
+      # Login to ECR
+      # ------------------------
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Set registry
-      run: |
-        echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
+      - name: Set registry
+        run: |
+          echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
 
-    # ------------------------
-    # Build Images (TAG = VERSION ONLY)
-    # ------------------------
-    - name: Build backend image
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_BACKEND_REPO:$VERSION ./backend
+      # ==================================================
+      # BACKEND
+      # ==================================================
 
-    - name: Build frontend image
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION ./frontend
+      - name: Build backend image
+        if: github.event.inputs.service == 'backend' || github.event.inputs.service == 'all'
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$ECR_BACKEND_REPO:$VERSION \
+            ./backend
 
-    # ------------------------
-    # Push Images (ONLY VERSION TAG)
-    # ------------------------
-    - name: Push backend image
-      run: |
-        docker push $ECR_REGISTRY/$ECR_BACKEND_REPO:$VERSION
+      - name: Push backend image
+        if: github.event.inputs.service == 'backend' || github.event.inputs.service == 'all'
+        run: |
+          docker push $ECR_REGISTRY/$ECR_BACKEND_REPO:$VERSION
 
-    - name: Push frontend image
-      run: |
-        docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION
+      # ==================================================
+      # FRONTEND
+      # ==================================================
+
+      - name: Build frontend image
+        if: github.event.inputs.service == 'frontend' || github.event.inputs.service == 'all'
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION \
+            ./frontend
+
+      - name: Push frontend image
+        if: github.event.inputs.service == 'frontend' || github.event.inputs.service == 'all'
+        run: |
+          docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION
+
+      # ==================================================
+      # DEPLOY
+      # ==================================================
+
+      - name: Deploy to EC2 via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy ${{ github.event.inputs.service }} version $VERSION" \
+            --parameters 'commands=[
+              "cd /opt/minishop",
+              "docker compose pull",
+              "docker compose up -d"
+            ]' \
+            --region "$AWS_REGION"
 
     
