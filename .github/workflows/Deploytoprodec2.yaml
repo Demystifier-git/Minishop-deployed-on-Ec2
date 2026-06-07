@@ -45,7 +45,7 @@ jobs:
 
           COMMANDS='[
             "set -e",
-            "cd /root/Minishop-deployed-on-Ec2/",
+            "cd /root/app/Minishop-deployed-on-Ec2/",
             "git pull",
             "export VERSION='"$VERSION"'",
             "echo VERSION=$VERSION",
