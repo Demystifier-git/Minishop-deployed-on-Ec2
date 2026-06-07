@@ -45,7 +45,8 @@ jobs:
 
           COMMANDS='[
             "set -e",
-            "cd /app/Minishop-deployed-on-Ec2",
+            "cd /root/Minishop-deployed-on-Ec2/"
+            git pull,
             "export VERSION='"$VERSION"'",
             "aws ecr get-login-password --region '"$AWS_REGION"' | docker login --username AWS --password-stdin '"$ECR_REGISTRY"'"
           ]'
