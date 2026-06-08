@@ -56,14 +56,14 @@ jobs:
 
             COMMANDS=$(echo "$COMMANDS" | jq '. + [
               "docker pull '"$ECR_REGISTRY"'/minishop-backend:'"$VERSION"'",
-              "docker compose up -d backend"
+              "docker compose up -d --no-deps backend"
             ]')
 
           elif [ "$SERVICE" = "frontend" ]; then
 
             COMMANDS=$(echo "$COMMANDS" | jq '. + [
               "docker pull '"$ECR_REGISTRY"'/minishop-frontend:'"$VERSION"'",
-              "docker compose up -d frontend"
+              "docker compose up -d --no-deps frontend"
             ]')
 
           else

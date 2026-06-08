@@ -3,7 +3,7 @@ set -euo pipefail
 
 AWS_REGION="us-east-1"
 SECRET_NAME="prod/minishop/app"
-APP_DIR="/root/app"
+APP_DIR="/root/app/Minishop-deployed-on-Ec2/"
 
 echo "Updating system..."
 sudo apt-get update -y
@@ -55,16 +55,10 @@ if [[ -z "$SECRET_JSON" || "$SECRET_JSON" == "None" ]]; then
   exit 1
 fi
 
-echo "Injecting secrets into environment..."
+echo "Creating runtime environment for Docker..."
 
-while IFS='=' read -r key value; do
-  export "$key=$value"
-done < <(
-  echo "$SECRET_JSON" | jq -r '
-    to_entries[] |
-    "\(.key)=\(.value|tostring)"
-  '
-)
+# 🔥 FIX: convert secrets into environment variables safely
+export $(echo "$SECRET_JSON" | jq -r 'to_entries | map("\(.key)=\(.value|tostring)") | .[]')
 
 echo "Secrets injected successfully"
 
@@ -72,6 +66,7 @@ echo "Deploying application..."
 
 cd "$APP_DIR"
 
+docker compose down || true
 docker compose up -d --build
 
 echo "Deployment complete"
