@@ -2,33 +2,13 @@ version: "3.8"
 
 services:
 
-  backend:
-    image: 387041334219.dkr.ecr.us-east-1.amazonaws.com/minishop-backend:${VERSION}
-    container_name: backend
+  frontend:
+    image: 387041334219.dkr.ecr.us-east-1.amazonaws.com/minishop-frontend:${VERSION}
+    container_name: frontend
     restart: unless-stopped
 
-    # IMPORTANT: ALB / EC2 must access this
     ports:
-      - "8000:8000"
-
-    environment:
-      DB_HOST: ${DB_HOST}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-
-      OTEL_SERVICE_NAME: backend
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
-
-    depends_on:
-      - otel-collector
-
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      - "80:80"
 
     logging: &default-logging
       driver: "json-file"
@@ -37,28 +17,11 @@ services:
         max-file: "3"
 
 
-  frontend:
-    image: 387041334219.dkr.ecr.us-east-1.amazonaws.com/minishop-frontend:${VERSION}
-    container_name: frontend
-    restart: unless-stopped
-
-    # IMPORTANT: if ALB routes to frontend, expose it
-    ports:
-      - "80:80"
-
-    depends_on:
-      - backend
-
-    logging:
-      <<: *default-logging
-
-
   prometheus:
     image: prom/prometheus:v2.52.0
     container_name: prometheus
     restart: unless-stopped
 
-    # CHANGE: expose → ports (needed for ALB or EC2 access)
     ports:
       - "9090:9090"
 
@@ -77,7 +40,6 @@ services:
     container_name: grafana
     restart: unless-stopped
 
-    # IMPORTANT for ALB routing
     ports:
       - "3000:3000"
 
@@ -116,7 +78,6 @@ services:
     container_name: loki
     restart: unless-stopped
 
-    # internal only (correct)
     expose:
       - "3100"
 
@@ -129,57 +90,11 @@ services:
       <<: *default-logging
 
 
-  promtail:
-    image: grafana/promtail:2.9.0
-    container_name: promtail
-    restart: unless-stopped
-
-    command: -config.file=/etc/promtail/config.yaml
-
-    volumes:
-      - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ./promtail-config.yaml:/etc/promtail/config.yaml
-      - /var/run/docker.sock:/var/run/docker.sock
-
-    depends_on:
-      - loki
-
-    logging:
-      <<: *default-logging
-
-
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.101.0
-    container_name: otel-collector
-    restart: unless-stopped
-
-    command:
-      - "--config=/etc/otel-collector-config.yaml"
-
-    volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
-      - /proc:/hostfs/proc:ro
-      - /sys:/hostfs/sys:ro
-      - /:/hostfs:ro
-
-    environment:  
-      - HOST_PROC=/hostfs/proc
-      - HOST_SYS=/hostfs/sys
-      - HOST_FS=/hostfs
-
-    expose:
-      - "4317"
-      - "4318"
-      - "8889"
-
-    depends_on:
-      - prometheus
-      - loki
-
-    logging:
-      <<: *default-logging
-
-
 volumes:
   grafana-data:
+
+
+
+  
+
+

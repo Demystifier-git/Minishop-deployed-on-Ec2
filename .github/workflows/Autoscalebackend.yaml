@@ -1,0 +1,35 @@
+name: Deploy Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image version (e.g. v1.2.0)"
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update SSM version
+        run: |
+          aws ssm put-parameter \
+            --name "/minishop/backend/version" \
+            --value "${{ github.event.inputs.version }}" \
+            --overwrite
+
+      - name: Trigger ASG rollout
+        run: |
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name backend-asg
