@@ -105,7 +105,6 @@ jobs:
         run: terraform plan -input=false
 
 
-
   # =========================================================
   # TERRAFORM APPLY
   # =========================================================
@@ -186,13 +185,17 @@ jobs:
       - name: Terraform Init
         run: terraform init -reconfigure
 
-      # ============================
-      # 🔥 ADDED DEBUG STEP (IMPORTANT)
-      # ============================
-      - name: Show Terraform Debug Output (if failure)
+      # =========================================================
+      # 🔥 REAL DEBUG FIX (THIS IS THE IMPORTANT PART)
+      # =========================================================
+      - name: Terraform Apply (FULL DEBUG OUTPUT)
         run: |
-          terraform plan -input=false || true
-          terraform show -no-color || true
+          set -e
+          TF_LOG=TRACE terraform apply -input=false -auto-approve 2>&1 | tee terraform-debug.log
 
-      - name: Terraform Apply
-        run: terraform apply -input=false -auto-approve
+      - name: Upload Terraform Debug Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-debug-log
+          path: terraform-debug.log
