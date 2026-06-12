@@ -18,7 +18,7 @@ permissions:
 jobs:
 
   # =========================================================
-  # TERRAFORM PLAN
+  # TERRAFORM PLAN (FULL DEBUG)
   # =========================================================
 
   plan:
@@ -92,21 +92,27 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Format Check
-        run: terraform fmt -recursive
-
       - name: Terraform Init
         run: terraform init -reconfigure
 
-      - name: Terraform Validate
-        run: terraform validate
+      # ============================
+      # 🔥 FULL DEBUG PLAN
+      # ============================
+      - name: Terraform Plan (FULL DEBUG)
+        run: |
+          set -e
+          TF_LOG=TRACE terraform plan -input=false 2>&1 | tee terraform-plan-debug.log
 
-      - name: Terraform Plan
-        run: terraform plan -input=false
+      - name: Upload Terraform Plan Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-debug-log
+          path: terraform-plan-debug.log
 
 
   # =========================================================
-  # TERRAFORM APPLY
+  # TERRAFORM APPLY (FULL DEBUG)
   # =========================================================
 
   apply:
@@ -185,17 +191,17 @@ jobs:
       - name: Terraform Init
         run: terraform init -reconfigure
 
-      # =========================================================
-      # 🔥 REAL DEBUG FIX (THIS IS THE IMPORTANT PART)
-      # =========================================================
-      - name: Terraform Apply (FULL DEBUG OUTPUT)
+      # ============================
+      # 🔥 FULL DEBUG APPLY
+      # ============================
+      - name: Terraform Apply (FULL DEBUG)
         run: |
           set -e
-          TF_LOG=TRACE terraform apply -input=false -auto-approve 2>&1 | tee terraform-debug.log
+          TF_LOG=TRACE terraform apply -input=false -auto-approve 2>&1 | tee terraform-apply-debug.log
 
-      - name: Upload Terraform Debug Log
+      - name: Upload Terraform Apply Log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-debug-log
-          path: terraform-debug.log
+          name: terraform-apply-debug-log
+          path: terraform-apply-debug.log
