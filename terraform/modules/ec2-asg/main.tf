@@ -1,87 +1,102 @@
 resource "aws_launch_template" "this" {
-  name_prefix   = "app-lt-"
-  image_id      = var.ec2_ami
+
+  name_prefix = "backend-lt-"
+
+  image_id = var.backend_ami
+
   instance_type = var.instance_type
 
   vpc_security_group_ids = var.security_group_ids
 
-  user_data = base64encode(<<EOF
-#!/bin/bash
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.this.arn
+  }
 
-echo "Starting app..."
-
-EOF
-  )
+  user_data = base64encode(templatefile(
+    "${path.module}/userdata.sh",
+    {
+      aws_region               = var.aws_region
+      secret_name              = var.secret_name
+      backend_version_parameter = var.backend_version_parameter
+    }
+  ))
 }
 
-
-# AUTO SCALING GROUP
-
-
 resource "aws_autoscaling_group" "this" {
-  name                = "app-asg"
-  desired_capacity    = var.desired_capacity
-  max_size            = var.max_size
-  min_size            = var.min_size
+
+  name = "backend-asg"
+
+  desired_capacity = var.desired_capacity
+  max_size         = var.max_size
+  min_size         = var.min_size
+
   vpc_zone_identifier = var.private_subnets
 
-  health_check_type         = "ELB"
+  target_group_arns = [
+    var.target_group_arn
+  ]
+
+  health_check_type = "ELB"
+
   health_check_grace_period = 300
 
-  target_group_arns = [var.target_group_arn]
+  default_instance_warmup = 300
 
   launch_template {
     id      = aws_launch_template.this.id
     version = "$Latest"
   }
 
-  # Helps prevent premature scaling decisions
-  default_instance_warmup = 300
+  instance_refresh {
+    strategy = "Rolling"
+
+    preferences {
+      min_healthy_percentage = 100
+    }
+  }
 
   tag {
     key                 = "Name"
-    value               = "asg-instance"
+    value               = "backend-asg-instance"
     propagate_at_launch = true
   }
 }
 
+resource "aws_autoscaling_policy" "cpu" {
 
-# CPU TARGET TRACKING
+  name = "backend-cpu-scaling"
 
+  policy_type = "TargetTrackingScaling"
 
-resource "aws_autoscaling_policy" "cpu_target_tracking" {
-  name                   = "cpu-target-tracking"
-  policy_type            = "TargetTrackingScaling"
   autoscaling_group_name = aws_autoscaling_group.this.name
 
   target_tracking_configuration {
+
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"
     }
 
-    # Maintain average CPU around 60%
     target_value = 60
   }
 }
 
+resource "aws_autoscaling_policy" "requests" {
 
-# ALB REQUEST TARGET TRACKING
+  name = "backend-request-scaling"
 
+  policy_type = "TargetTrackingScaling"
 
-resource "aws_autoscaling_policy" "alb_requests_tracking" {
-  name                   = "alb-requests-tracking"
-  policy_type            = "TargetTrackingScaling"
   autoscaling_group_name = aws_autoscaling_group.this.name
 
   target_tracking_configuration {
 
     predefined_metric_specification {
+
       predefined_metric_type = "ALBRequestCountPerTarget"
 
       resource_label = "${var.lb_arn_suffix}/${var.target_group_arn_suffix}"
     }
 
-    # Requests per target before scaling
     target_value = 1000
   }
 }

@@ -180,3 +180,10 @@ variable "db_host" {
   type        = string
 }
 
+variable "backend_ami" {
+  type = string
+}
+
+variable "backend_version_parameter" {
+  type = string
+}

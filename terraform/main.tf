@@ -112,21 +112,24 @@ module "ec2_asg" {
   security_group_ids = [module.web_sg.sg_id]
   target_group_arn   = module.lb_ssl.backend_target_group_arn
 
-
   key_name      = null
-  ec2_ami       = var.ec2_ami
+  backend_ami   = var.backend_ami
   instance_type = var.instance_type
+
+  aws_region               = var.aws_region
+  secret_name              = var.secret_name
+  backend_version_parameter = var.backend_version_parameter
 
   desired_capacity        = var.desired_capacity
   max_size                = var.max_size
   min_size                = var.min_size
+
   lb_arn_suffix           = module.lb_ssl.lb_arn_suffix
   target_group_arn_suffix = module.lb_ssl.backend_target_group_arn_suffix
 
   depends_on = [
     module.lb_ssl
   ]
-
 }
 
 

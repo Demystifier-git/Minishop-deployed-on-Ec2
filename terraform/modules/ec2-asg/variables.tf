@@ -14,7 +14,7 @@ variable "key_name" {
   type = string
 }
 
-variable "ec2_ami" {
+variable "backend_ami" {
   type = string
 }
 
@@ -36,3 +36,15 @@ variable "min_size" {
 
 variable "lb_arn_suffix" {}
 variable "target_group_arn_suffix" {}
+
+variable "aws_region" {
+  type = string
+}
+
+variable "backend_version_parameter" {
+  type = string
+}
+
+variable "secret_name" {
+  type = string
+}
