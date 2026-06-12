@@ -126,6 +126,8 @@ module "ec2_asg" {
 
   lb_arn_suffix           = module.lb_ssl.lb_arn_suffix
   target_group_arn_suffix = module.lb_ssl.backend_target_group_arn_suffix
+  instance_profile_arn = aws_iam_instance_profile.ec2_profile.arn
+  
 
   depends_on = [
     module.lb_ssl

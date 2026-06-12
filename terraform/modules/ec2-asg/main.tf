@@ -9,8 +9,8 @@ resource "aws_launch_template" "this" {
   vpc_security_group_ids = var.security_group_ids
 
   iam_instance_profile {
-    arn = aws_iam_instance_profile.this.arn
-  }
+  arn = var.instance_profile_arn
+}
 
   user_data = base64encode(templatefile(
     "${path.module}/userdata.sh",

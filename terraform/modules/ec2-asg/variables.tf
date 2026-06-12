@@ -48,3 +48,7 @@ variable "backend_version_parameter" {
 variable "secret_name" {
   type = string
 }
+
+variable "instance_profile_arn" {
+  type = string
+}
