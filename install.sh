@@ -8,11 +8,10 @@ APP_DIR="/root/Minishop-deployed-on-Ec2"
 echo "Updating system..."
 apt-get update -y
 
-echo "Installing base tools..."
+echo "Installing dependencies..."
 apt-get install -y curl unzip git jq ca-certificates gnupg lsb-release
 
 echo "Installing Docker..."
-
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
@@ -26,7 +25,7 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 systemctl enable docker
 systemctl start docker
 
-echo "Installing AWS CLI v2..."
+echo "Installing AWS CLI..."
 if ! command -v aws &> /dev/null; then
   curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
   unzip -q awscliv2.zip
@@ -40,7 +39,7 @@ docker compose version
 aws --version
 git --version
 
-echo "Cloning application repo..."
+echo "Cloning repo..."
 if [ ! -d "$APP_DIR" ]; then
   git clone https://github.com/Demystifier-git/Minishop-deployed-on-Ec2.git "$APP_DIR"
 fi
@@ -60,15 +59,16 @@ if [[ -z "$SECRET_JSON" || "$SECRET_JSON" == "None" ]]; then
   exit 1
 fi
 
-echo "Creating .env file from Secrets Manager..."
+echo "Exporting secrets as environment variables..."
 
-echo "$SECRET_JSON" | jq -r '
-  to_entries |
-  map("\(.key)=\(.value|tostring)") |
-  .[]
-' > .env
+# 🔥 FIX: correct export so Docker Compose can access values
+while IFS== read -r key value; do
+  export "$key=$value"
+done < <(echo "$SECRET_JSON" | jq -r 'to_entries[] | "\(.key)=\(.value|tostring)"')
 
-echo "Setting application version from SSM..."
+echo "Secrets loaded successfully"
+
+echo "Fetching backend version from SSM..."
 
 VERSION=$(aws ssm get-parameter \
   --name "/minishop/backend/version" \
@@ -76,16 +76,15 @@ VERSION=$(aws ssm get-parameter \
   --output text \
   --region "$AWS_REGION")
 
-echo "VERSION=$VERSION" >> .env
+export VERSION=v1.1.0
 
 echo "Logging into ECR..."
-
 aws ecr get-login-password --region "$AWS_REGION" | \
 docker login --username AWS --password-stdin 387041334219.dkr.ecr.us-east-1.amazonaws.com
 
-echo "Deploying application..."
+echo "Starting deployment..."
 
 docker compose down || true
 docker compose up -d --build
 
-echo "Deployment complete"
+echo "Deployment completed successfully"
