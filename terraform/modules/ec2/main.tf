@@ -59,3 +59,8 @@ resource "aws_iam_role_policy_attachment" "ec2_rds_attach" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess"
 }
+
+resource "aws_iam_role_policy_attachment" "ec2_iam_read_attach" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/IAMReadOnlyAccess"
+}
