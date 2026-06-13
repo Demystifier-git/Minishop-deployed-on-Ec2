@@ -57,6 +57,8 @@ fi
 
 echo "Injecting environment variable names only..."
 
+export VERSION=v1.1.0
+
 export GRAFANA_ADMIN_PASSWORD
 export GRAFANA_ADMIN_USER
 export GRAFANA_ROOT_URL
