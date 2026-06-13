@@ -3,7 +3,7 @@ set -euo pipefail
 
 AWS_REGION="us-east-1"
 SECRET_NAME="prod/minishop/app"
-APP_DIR="/root/app/Minishop-deployed-on-Ec2/"
+APP_DIR="/root/Minishop-deployed-on-Ec2/"
 
 echo "Updating system..."
 sudo apt-get update -y
@@ -55,12 +55,18 @@ if [[ -z "$SECRET_JSON" || "$SECRET_JSON" == "None" ]]; then
   exit 1
 fi
 
-echo "Creating runtime environment for Docker..."
+echo "Injecting environment variable names only..."
 
-# 🔥 FIX: convert secrets into environment variables safely
-export $(echo "$SECRET_JSON" | jq -r 'to_entries | map("\(.key)=\(.value|tostring)") | .[]')
+export GRAFANA_ADMIN_PASSWORD
+export GRAFANA_ADMIN_USER
+export GRAFANA_ROOT_URL
 
-echo "Secrets injected successfully"
+export SMTP_FROM
+export SMTP_HOST
+export SMTP_PASSWORD
+export SMTP_USER
+
+echo "Secrets variable names declared (values expected from Secrets Manager / runtime injection)"
 
 echo "Deploying application..."
 
