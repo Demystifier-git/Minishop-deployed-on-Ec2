@@ -79,7 +79,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "3100"
+      - "3100:3100"
 
     command: -config.file=/etc/loki/loki-config.yaml
 
