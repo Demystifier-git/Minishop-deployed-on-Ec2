@@ -50,6 +50,7 @@ module "web_sg" {
   sg_name = "ec2-sg"
 
   lb_security_group_id = module.lb_ssl.lb_security_group_id
+  backend_asg_security_group_id = module.backend_asg_sg.security_group_id
 
 }
 
@@ -228,4 +229,17 @@ module "waf" {
   project_name = var.project_name
   environment  = var.environment
   alb_arn      = module.lb_ssl.lb_arn
+}
+
+module "backend_asg_sg" {
+  source = "./modules/security_group_asg"
+
+  name        = "backend-asg-sg"
+  description = "Backend ASG instances"
+  vpc_id      = module.vpc.vpc_id
+  ec2_security_group_id = module.web_sg.security_group_id
+
+  tags = {
+    Name = "backend-asg-sg"
+  }
 }
