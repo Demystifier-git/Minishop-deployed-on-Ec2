@@ -1,5 +1,5 @@
 resource "aws_security_group" "asg" {
-  name   = var.sg_name
+  name   = var.name
   vpc_id = var.vpc_id
 
   # Allow Prometheus (EC2 A) to scrape OTel Collector
@@ -19,7 +19,7 @@ resource "aws_security_group" "asg" {
   }
 
   tags = {
-    Name = var.sg_name
+    Name = var.name
   }
 
 }

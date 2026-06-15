@@ -237,7 +237,7 @@ module "backend_asg_sg" {
   name        = "backend-asg-sg"
   description = "Backend ASG instances"
   vpc_id      = module.vpc.vpc_id
-  ec2_security_group_id = module.web_sg.security_group_id
+  web_security_group_id = module.web_sg.security_group_id
 
   tags = {
     Name = "backend-asg-sg"
