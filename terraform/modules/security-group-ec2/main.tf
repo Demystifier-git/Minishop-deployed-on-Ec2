@@ -30,12 +30,7 @@ resource "aws_security_group" "web" {
     security_groups = [var.lb_security_group_id]
   }
 
-  ingress {
-    from_port       = 27017
-    to_port         = 27017
-    protocol        = "tcp"
-    security_groups = [var.lb_security_group_id]
-  }
+ 
 
   ingress {
   description     = "Promtail to Loki"

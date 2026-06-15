@@ -1,7 +1,15 @@
-resource "aws_security_group" "this" {
-  name        = var.name
-  description = var.description
-  vpc_id      = var.vpc_id
+resource "aws_security_group" "asg" {
+  name   = var.sg_name
+  vpc_id = var.vpc_id
+
+  # Allow Prometheus (EC2 A) to scrape OTel Collector
+  ingress {
+    description     = "Prometheus to OTel Collector"
+    from_port       = 8889
+    to_port         = 8889
+    protocol        = "tcp"
+    security_groups = [var.web_security_group_id]
+  }
 
   egress {
     from_port   = 0
@@ -10,14 +18,8 @@ resource "aws_security_group" "this" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = var.tags
-}
+  tags = {
+    Name = var.sg_name
+  }
 
-ingress {
-  description     = "Prometheus to OTel"
-  from_port       = 8889
-  to_port         = 8889
-  protocol        = "tcp"
-
-  security_groups = [module.ec2_sg.security_group_id]
 }
