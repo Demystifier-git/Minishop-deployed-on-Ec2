@@ -6,7 +6,5 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
-variable "web_security_group_id" {
-  type = string
-}
+
 
