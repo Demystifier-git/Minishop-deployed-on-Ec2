@@ -71,7 +71,7 @@ module "ec2" {
   # EC2 expects ONE subnet
   subnet_id = module.subnets.private_subnet_ids[0]
 
-  security_group_ids = [module.web_sg.sg_id]
+  security_group_ids = [module.web_sg.security_group_id]
 
   ami           = var.ec2_ami
   instance_type = var.instance_type
@@ -110,7 +110,7 @@ module "ec2_asg" {
   source = "./modules/ec2-asg"
 
   private_subnets    = module.subnets.private_subnet_ids
-  security_group_ids = [module.web_sg.sg_id]
+  security_group_ids = [module.web_sg.security_group_id]
   target_group_arn   = module.lb_ssl.backend_target_group_arn
 
   key_name      = null
@@ -140,7 +140,7 @@ module "db_sg" {
   source         = "./modules/security-group-db"
   vpc_id         = module.vpc.vpc_id
   sg_name        = "db-new"
-  allowed_sg_ids = [module.web_sg.sg_id]
+  allowed_sg_ids = [module.web_sg.security_group_id]
 }
 
 

@@ -33,9 +33,7 @@ output "nat_id" {
 
 # SECURITY GROUPS
 
-output "web_sg_id" {
-  value = module.web_sg.sg_id
-}
+
 
 output "vpc_sg_id" {
   value = module.vpc_sg.sg_id
@@ -98,6 +96,12 @@ output "secret_name" {
 }
 
 
+output "web_sg_id" {
+  value = module.web_sg.security_group_id
+}
 
+output "backend_asg_sg_id" {
+  value = module.backend_asg_sg.security_group_id
+}
 
 
