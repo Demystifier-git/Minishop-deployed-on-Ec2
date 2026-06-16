@@ -38,7 +38,7 @@ resource "aws_autoscaling_group" "this" {
 
   health_check_type = "ELB"
 
-  health_check_grace_period = 300
+  health_check_grace_period = 600
 
   default_instance_warmup = 300
 
@@ -52,6 +52,7 @@ resource "aws_autoscaling_group" "this" {
 
     preferences {
       min_healthy_percentage = 100
+      instance_warmup        = 600
     }
 
      triggers = [
