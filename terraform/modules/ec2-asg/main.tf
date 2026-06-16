@@ -53,6 +53,10 @@ resource "aws_autoscaling_group" "this" {
     preferences {
       min_healthy_percentage = 100
     }
+
+     triggers = [
+    "launch_template"
+  ]
   }
 
   tag {
