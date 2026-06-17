@@ -32,10 +32,7 @@ resource "aws_autoscaling_group" "this" {
 
   vpc_zone_identifier = var.private_subnets
 
-  target_group_arns = [
-    var.target_group_arn
-  ]
-
+  target_group_arns = var.target_group_arns
   health_check_type = "ELB"
 
   health_check_grace_period = 600

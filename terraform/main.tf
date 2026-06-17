@@ -112,7 +112,11 @@ module "ec2_asg" {
 
   private_subnets    = module.subnets.private_subnet_ids
   security_group_ids = [module.backend_asg_sg.security_group_id]
-  target_group_arn   = module.lb_ssl.backend_target_group_arn
+  
+  target_group_arns = [
+  module.lb_ssl.backend_target_group_arn,
+  module.lb_ssl.otel_target_group_arn
+]
 
   key_name      = null
   backend_ami   = var.backend_ami
