@@ -1,37 +1,190 @@
 apiVersion: 1
 
 groups:
-  - orgId: 1
-    name: backend-alerts
-    folder: Backend Alerts
-    interval: 1m
 
-    rules:
-      - uid: backend-down
-        title: BackendDown
-        condition: A
 
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
+# 1. BACKEND AVAILABILITY
 
-            datasourceUid: prometheus
+- name: backend-alerts
+  folder: Backend Alerts
+  interval: 1m
 
-            model:
-              expr: up{job="backend"} == 0
-              intervalMs: 1000
-              maxDataPoints: 43200
-              refId: A
+  rules:
+    - uid: backend-down
+      title: BackendDown
+      condition: A
 
-        for: 1m   
+      data:
+        - refId: A
+          datasourceUid: prometheus
+          relativeTimeRange:
+            from: 5
+            to: 0
+          model:
+            expr: sum(up{job="backend"}) == 0
+            refId: A
 
-        noDataState: Alerting
-        execErrState: Alerting
+      for: 2m
 
-        annotations:
-          summary: Backend API is down
+      annotations:
+        summary: Backend is down
 
-        labels:
-          severity: critical
+      labels:
+        severity: critical
+        service: backend
+
+
+    - uid: backend-high-error-rate
+      title: BackendHighErrorRate
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: prometheus
+          relativeTimeRange:
+            from: 5
+            to: 0
+          model:
+            expr: |
+              sum(rate(http_requests_total{job="backend",status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total{job="backend"}[5m]))
+            refId: A
+
+      for: 5m
+
+      annotations:
+        summary: High backend error rate (>5%)
+
+      labels:
+        severity: warning
+        service: backend
+
+
+    - uid: backend-high-latency
+      title: BackendHighLatency
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: prometheus
+          relativeTimeRange:
+            from: 5
+            to: 0
+          model:
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(http_request_duration_seconds_bucket{job="backend"}[5m])) by (le)
+              )
+            refId: A
+
+      for: 5m
+
+      annotations:
+        summary: Backend p95 latency > 500ms
+
+      labels:
+        severity: warning
+        service: backend
+
+
+
+# 2. CPU / MEMORY (NODE)
+
+- name: node-resource-alerts
+  folder: Infrastructure Alerts
+  interval: 1m
+
+  rules:
+
+    - uid: high-cpu
+      title: HighCPUUsage
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: prometheus
+          model:
+            expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+            refId: A
+
+      for: 5m
+
+      annotations:
+        summary: CPU usage > 80%
+
+      labels:
+        severity: warning
+        service: node
+
+
+    - uid: high-memory
+      title: HighMemoryUsage
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: prometheus
+          model:
+            expr: |
+              (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+            refId: A
+
+      for: 5m
+
+      annotations:
+        summary: Memory usage > 80%
+
+      labels:
+        severity: warning
+        service: node
+
+
+
+# 3. DISK SATURATION
+
+    - uid: disk-almost-full
+      title: DiskAlmostFull
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: prometheus
+          model:
+            expr: |
+              (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} /
+                    node_filesystem_size_bytes{fstype!="tmpfs"})) * 100
+            refId: A
+
+      for: 10m
+
+      annotations:
+        summary: Disk usage > 85%
+
+      labels:
+        severity: critical
+        service: node
+
+
+
+# 4. INSTANCE HEALTH
+
+    - uid: instance-down
+      title: InstanceDown
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: prometheus
+          model:
+            expr: sum(up) == 0
+            refId: A
+
+      for: 2m
+
+      annotations:
+        summary: Instance is unreachable
+
+      labels:
+        severity: critical
+        service: infra
