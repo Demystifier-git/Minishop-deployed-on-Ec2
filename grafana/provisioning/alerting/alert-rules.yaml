@@ -2,9 +2,9 @@ apiVersion: 1
 
 groups:
 
-
+# =========================
 # 1. BACKEND AVAILABILITY
-
+# =========================
 - name: backend-alerts
   folder: Backend Alerts
   interval: 1m
@@ -46,15 +46,17 @@ groups:
             to: 0
           model:
             expr: |
-              sum(rate(http_requests_total{job="backend",status=~"5.."}[5m]))
-              /
-              sum(rate(http_requests_total{job="backend"}[5m]))
+              (
+                sum(rate(http_requests_total{job="backend",status=~"5.."}[5m]))
+                /
+                sum(rate(http_requests_total{job="backend"}[5m]))
+              ) * 100
             refId: A
 
       for: 5m
 
       annotations:
-        summary: High backend error rate (>5%)
+        summary: Backend error rate > 5%
 
       labels:
         severity: warning
@@ -73,7 +75,8 @@ groups:
             to: 0
           model:
             expr: |
-              histogram_quantile(0.95,
+              histogram_quantile(
+                0.95,
                 sum(rate(http_request_duration_seconds_bucket{job="backend"}[5m])) by (le)
               )
             refId: A
@@ -88,9 +91,9 @@ groups:
         service: backend
 
 
-
-# 2. CPU / MEMORY (NODE)
-
+# =========================
+# 2. CPU / MEMORY
+# =========================
 - name: node-resource-alerts
   folder: Infrastructure Alerts
   interval: 1m
@@ -104,6 +107,9 @@ groups:
       data:
         - refId: A
           datasourceUid: prometheus
+          relativeTimeRange:
+            from: 5
+            to: 0
           model:
             expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
             refId: A
@@ -125,6 +131,9 @@ groups:
       data:
         - refId: A
           datasourceUid: prometheus
+          relativeTimeRange:
+            from: 5
+            to: 0
           model:
             expr: |
               (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
@@ -140,9 +149,9 @@ groups:
         service: node
 
 
-
+# =========================
 # 3. DISK SATURATION
-
+# =========================
     - uid: disk-almost-full
       title: DiskAlmostFull
       condition: A
@@ -150,6 +159,9 @@ groups:
       data:
         - refId: A
           datasourceUid: prometheus
+          relativeTimeRange:
+            from: 5
+            to: 0
           model:
             expr: |
               (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} /
@@ -166,9 +178,9 @@ groups:
         service: node
 
 
-
+# =========================
 # 4. INSTANCE HEALTH
-
+# =========================
     - uid: instance-down
       title: InstanceDown
       condition: A
@@ -176,6 +188,9 @@ groups:
       data:
         - refId: A
           datasourceUid: prometheus
+          relativeTimeRange:
+            from: 5
+            to: 0
           model:
             expr: sum(up) == 0
             refId: A
