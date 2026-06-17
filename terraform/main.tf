@@ -90,7 +90,7 @@ module "lb_ssl" {
 
   domain_name     = var.domain_name
   certificate_arn = var.certificate_arn
-  backend_asg_name = module.ec2_asg.asg_name
+  
 }
 
 # Route53
