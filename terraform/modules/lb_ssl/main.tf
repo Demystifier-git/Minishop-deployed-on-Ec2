@@ -302,8 +302,8 @@ resource "aws_lb_target_group_attachment" "prometheus" {
 }
 
 resource "aws_autoscaling_attachment" "otel" {
-  autoscaling_group_name = module.backend_asg.name
-  lb_target_group_arn     = aws_lb_target_group.otel.arn
+  autoscaling_group_name = var.backend_asg_name
+  lb_target_group_arn    = aws_lb_target_group.otel.arn
 }
 
 
