@@ -54,3 +54,7 @@ output "backend_target_group_arn_suffix" {
   value = aws_lb_target_group.backend.arn_suffix
 }
 
+output "otel_target_group_arn" {
+  value = aws_lb_target_group.otel.arn
+}
+
