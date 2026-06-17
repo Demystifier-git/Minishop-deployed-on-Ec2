@@ -249,6 +249,24 @@ resource "aws_lb_listener_rule" "prometheus" {
   }
 }
 
+#otel.delightdavid.online
+
+resource "aws_lb_listener_rule" "otel" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 30
+
+  condition {
+    host_header {
+      values = ["otel.delightdavid.online"]
+    }
+  }
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.otel.arn
+  }
+}
+
 # =========================
 # TARGET GROUP ATTACHMENTS
 # =========================
