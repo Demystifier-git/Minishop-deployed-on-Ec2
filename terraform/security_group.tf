@@ -25,5 +25,5 @@ resource "aws_security_group_rule" "alb_to_backend" {
   protocol                 = "tcp"
 
   security_group_id        = module.backend_asg_sg.security_group_id
-  source_security_group_id = module.alb_sg.security_group_id
+  source_security_group_id = module.lb_sg.security_group_id
 }
