@@ -140,7 +140,9 @@ module "db_sg" {
   source         = "./modules/security-group-db"
   vpc_id         = module.vpc.vpc_id
   sg_name        = "db-new"
-  allowed_sg_ids = [module.web_sg.security_group_id]
+  allowed_sg_ids = [
+    module.backend_asg_sg.security_group_id
+  ]
 }
 
 
