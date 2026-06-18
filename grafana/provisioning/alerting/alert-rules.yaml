@@ -92,7 +92,7 @@ groups:
 
 
 # =========================
-# 2. CPU / MEMORY
+# 2. CPU / MEMORY (OTEL COLLECTOR)
 # =========================
 - name: node-resource-alerts
   folder: Infrastructure Alerts
@@ -111,17 +111,24 @@ groups:
             from: 5
             to: 0
           model:
-            expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+            expr: |
+              100 * (
+                1 - (
+                  sum(rate(system_cpu_time_seconds_total{state="idle"}[5m]))
+                  /
+                  sum(rate(system_cpu_time_seconds_total[5m]))
+                )
+              ) > 70
             refId: A
 
       for: 5m
 
       annotations:
-        summary: CPU usage > 80%
+        summary: CPU usage > 70% (OpenTelemetry Collector)
 
       labels:
         severity: warning
-        service: node
+        service: otel
 
 
     - uid: high-memory
@@ -136,7 +143,7 @@ groups:
             to: 0
           model:
             expr: |
-              (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+              (1 - (system_memory_usage_bytes / system_memory_limit_bytes)) * 100
             refId: A
 
       for: 5m
@@ -146,11 +153,11 @@ groups:
 
       labels:
         severity: warning
-        service: node
+        service: otel
 
 
 # =========================
-# 3. DISK SATURATION
+# 3. DISK SATURATION (OTEL)
 # =========================
     - uid: disk-almost-full
       title: DiskAlmostFull
@@ -164,8 +171,11 @@ groups:
             to: 0
           model:
             expr: |
-              (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} /
-                    node_filesystem_size_bytes{fstype!="tmpfs"})) * 100
+              (1 - (
+                system_filesystem_usage_bytes
+                /
+                system_filesystem_limit_bytes
+              )) * 100
             refId: A
 
       for: 10m
@@ -175,7 +185,7 @@ groups:
 
       labels:
         severity: critical
-        service: node
+        service: otel
 
 
 # =========================
@@ -204,10 +214,10 @@ groups:
         severity: critical
         service: infra
 
+
 # =========================
 # 5. LOKI LOG ALERTS
 # =========================
-
 - name: loki-alerts
   folder: Log Alerts
   interval: 1m
@@ -240,35 +250,6 @@ groups:
 
       labels:
         severity: warning
-        service: backend
-
-
-    - uid: backend-error-spike
-      title: BackendErrorSpike
-      condition: A
-
-      data:
-        - refId: A
-          datasourceUid: loki
-          relativeTimeRange:
-            from: 300
-            to: 0
-          model:
-            expr: |
-              sum(
-                count_over_time(
-                  {container="backend"} |= "ERROR" [5m]
-                )
-              )
-            refId: A
-
-      for: 5m
-
-      annotations:
-        summary: High volume of backend errors
-
-      labels:
-        severity: critical
         service: backend
 
 
@@ -315,7 +296,7 @@ groups:
             expr: |
               sum(
                 count_over_time(
-                  {container="backend"} [5m]
+                  {container="backend"}[5m]
                 )
               )
             refId: A
@@ -328,61 +309,3 @@ groups:
       labels:
         severity: critical
         service: backend
-
-
-    - uid: grafana-errors
-      title: GrafanaErrorsDetected
-      condition: A
-
-      data:
-        - refId: A
-          datasourceUid: loki
-          relativeTimeRange:
-            from: 300
-            to: 0
-          model:
-            expr: |
-              sum(
-                count_over_time(
-                  {container="grafana"} |= "error" [5m]
-                )
-              )
-            refId: A
-
-      for: 2m
-
-      annotations:
-        summary: Grafana errors detected
-
-      labels:
-        severity: warning
-        service: grafana
-
-
-    - uid: prometheus-errors
-      title: PrometheusErrorsDetected
-      condition: A
-
-      data:
-        - refId: A
-          datasourceUid: loki
-          relativeTimeRange:
-            from: 300
-            to: 0
-          model:
-            expr: |
-              sum(
-                count_over_time(
-                  {container="prometheus"} |= "error" [5m]
-                )
-              )
-            refId: A
-
-      for: 2m
-
-      annotations:
-        summary: Prometheus errors detected
-
-      labels:
-        severity: warning
-        service: prometheus        
