@@ -5,5 +5,10 @@ variable "lb_security_group_id" {
   type        = string
 }
 
+variable "backend_asg_sg_id" {
+  description = "Load balancer security group ID"
+  type        = string
+}
+
 
 

@@ -30,6 +30,13 @@ resource "aws_security_group" "web" {
     security_groups = [var.lb_security_group_id]
   }
 
+   ingress {
+    from_port       = 3100
+    to_port         = 3100
+    protocol        = "tcp"
+    security_groups = [var.backend_asg_sg_id]
+  }
+
  
 
  

@@ -50,6 +50,8 @@ module "web_sg" {
   sg_name = "ec2-sg"
 
   lb_security_group_id = module.lb_ssl.lb_security_group_id
+
+  backend_asg_sg_id     = module.backend_asg_sg.security_group_id
  
 
 }
@@ -112,7 +114,7 @@ module "ec2_asg" {
 
   private_subnets    = module.subnets.private_subnet_ids
   security_group_ids = [module.backend_asg_sg.security_group_id]
-  
+
   target_group_arns = [
   module.lb_ssl.backend_target_group_arn,
   module.lb_ssl.otel_target_group_arn
