@@ -203,3 +203,186 @@ groups:
       labels:
         severity: critical
         service: infra
+
+# =========================
+# 5. LOKI LOG ALERTS
+# =========================
+
+- name: loki-alerts
+  folder: Log Alerts
+  interval: 1m
+
+  rules:
+
+    - uid: backend-errors
+      title: BackendErrorsDetected
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: loki
+          relativeTimeRange:
+            from: 300
+            to: 0
+          model:
+            expr: |
+              sum(
+                count_over_time(
+                  {container="backend"} |= "ERROR" [5m]
+                )
+              )
+            refId: A
+
+      for: 2m
+
+      annotations:
+        summary: Backend error logs detected
+
+      labels:
+        severity: warning
+        service: backend
+
+
+    - uid: backend-error-spike
+      title: BackendErrorSpike
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: loki
+          relativeTimeRange:
+            from: 300
+            to: 0
+          model:
+            expr: |
+              sum(
+                count_over_time(
+                  {container="backend"} |= "ERROR" [5m]
+                )
+              )
+            refId: A
+
+      for: 5m
+
+      annotations:
+        summary: High volume of backend errors
+
+      labels:
+        severity: critical
+        service: backend
+
+
+    - uid: backend-exceptions
+      title: BackendExceptions
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: loki
+          relativeTimeRange:
+            from: 300
+            to: 0
+          model:
+            expr: |
+              sum(
+                count_over_time(
+                  {container="backend"} |= "Exception" [5m]
+                )
+              )
+            refId: A
+
+      for: 1m
+
+      annotations:
+        summary: Backend exceptions detected
+
+      labels:
+        severity: critical
+        service: backend
+
+
+    - uid: backend-no-logs
+      title: BackendNoLogs
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: loki
+          relativeTimeRange:
+            from: 300
+            to: 0
+          model:
+            expr: |
+              sum(
+                count_over_time(
+                  {container="backend"} [5m]
+                )
+              )
+            refId: A
+
+      for: 5m
+
+      annotations:
+        summary: No backend logs received
+
+      labels:
+        severity: critical
+        service: backend
+
+
+    - uid: grafana-errors
+      title: GrafanaErrorsDetected
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: loki
+          relativeTimeRange:
+            from: 300
+            to: 0
+          model:
+            expr: |
+              sum(
+                count_over_time(
+                  {container="grafana"} |= "error" [5m]
+                )
+              )
+            refId: A
+
+      for: 2m
+
+      annotations:
+        summary: Grafana errors detected
+
+      labels:
+        severity: warning
+        service: grafana
+
+
+    - uid: prometheus-errors
+      title: PrometheusErrorsDetected
+      condition: A
+
+      data:
+        - refId: A
+          datasourceUid: loki
+          relativeTimeRange:
+            from: 300
+            to: 0
+          model:
+            expr: |
+              sum(
+                count_over_time(
+                  {container="prometheus"} |= "error" [5m]
+                )
+              )
+            refId: A
+
+      for: 2m
+
+      annotations:
+        summary: Prometheus errors detected
+
+      labels:
+        severity: warning
+        service: prometheus        
