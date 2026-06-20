@@ -116,21 +116,6 @@ jobs:
         run: |
           docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:$VERSION
 
-      # ==================================================
-      # DEPLOY
-      # ==================================================
-
-      - name: Deploy to EC2 via SSM
-        run: |
-          aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy ${{ github.event.inputs.service }} version $VERSION" \
-            --parameters 'commands=[
-              "cd /opt/minishop",
-              "docker compose pull",
-              "docker compose up -d"
-            ]' \
-            --region "$AWS_REGION"
+     
 
     

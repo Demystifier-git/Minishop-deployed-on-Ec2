@@ -60,7 +60,7 @@ Amazon RDS for MySQL (Private Subnet)
 Static website served through Nginx.
 
 **URL:**  
-https://delightdavid.online
+https://app.delightdavid.online
 
 ---
 
@@ -263,18 +263,7 @@ Implemented using GitHub Actions.
 - Ensures infrastructure is version-controlled, repeatable, and auditable  
 
 
-## Ansible (Configuration Management)
-
-- Used to configure servers after Terraform provisions infrastructure  
-- Runs in an agentless mode using SSH  
-- Responsibilities include:
-  - Installing required packages such as Docker, Git, and runtime dependencies  
-  - Configuring system settings and environment variables  
-  - Deploying application code or pulling container images from ECR  
-  - Managing services using systemd or Docker Compose  
-  - Applying configuration updates without rebuilding infrastructure  
-- Uses inventory files to define target servers  
-- Uses playbooks to define desired system state  
+ 
 
 ## CI/CD Pipeline Flow
 
